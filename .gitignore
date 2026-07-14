@@ -1,0 +1,27 @@
+# Backups
+*.bak
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Credential files (should never be committed)
+.credentials.json
+auth.json
+oauth_creds.json
+google_accounts.json
+trustedFolders.json
+
+# Local tool state
+.antigravitycli/
+.claude/
+.pytest_cache/
+
+# Editor files
+*.swp
+*.swo
+*~
+
+__pycache__/
+*.pyc

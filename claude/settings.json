@@ -1,0 +1,96 @@
+{
+  "env": {
+    "CODEX_HOME": "/home/human/.codex-set",
+    "ECC_GATEGUARD": "off",
+    "ECC_CONTEXT_MONITOR_COST_WARNINGS": "false"
+  },
+  "permissions": {
+    "allow": [
+      "Gemini -p",
+      "Bash(node /home/human/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs:*)",
+      "Bash(node \"/home/human/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs\":*)",
+      "Bash(codex:*)",
+      "Bash(rsync -a *)",
+      "Bash(/home/human/.local/bin/sbom-tool generate *)",
+      "Bash(/home/human/.local/bin/ex-sbom*)",
+      "Bash(curl -sS -X POST \"http://127.0.0.1:18080/*)",
+      "Bash(curl -sS \"http://127.0.0.1:18080/*)",
+      "Bash(curl -sS -o /dev/null -w * http://127.0.0.1:18080/*)",
+      "Bash(mkdir -p /tmp/sbom-out-*)",
+      "Bash(mv /tmp/*.pdf */*.pdf)",
+      "Bash(cp /tmp/sbom-out-*/_manifest/spdx_2.2/manifest.spdx.json */*.spdx.json)",
+      "Bash(rm -rf /tmp/sbom-src-* /tmp/sbom-out-* /tmp/sbom-tool-extract-*)",
+      "Bash(pkill -f ex-sbom)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline.sh"
+  },
+  "enabledPlugins": {
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
+    "superpowers@claude-plugins-official": true,
+    "context7@claude-plugins-official": false,
+    "code-simplifier@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": false,
+    "skill-creator@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "playwright@claude-plugins-official": false,
+    "pyright-lsp@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": false,
+    "playground@claude-plugins-official": false,
+    "atomic-agents@claude-plugins-official": false,
+    "microsoft-docs@claude-plugins-official": false,
+    "codex@openai-codex": true,
+    "mongodb@claude-plugins-official": true,
+    "chrome-devtools-mcp@claude-plugins-official": false,
+    "frontend-design@claude-plugins-official": true,
+    "figma@claude-plugins-official": false,
+    "vercel@claude-plugins-official": true,
+    "slack@claude-plugins-official": false,
+    "atlassian@claude-plugins-official": false,
+    "ecc@ecc": true,
+    "desktop-commander@claude-plugins-official": false,
+    "remember@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/anthropics/claude-plugins-official.git"
+      }
+    },
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      },
+      "autoUpdate": true
+    },
+    "ecc": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/affaan-m/everything-claude-code.git"
+      },
+      "autoUpdate": true
+    }
+  },
+  "language": "繁體中文",
+  "alwaysThinkingEnabled": false,
+  "effortLevel": "high",
+  "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
+  "theme": "dark-ansi",
+  "editorMode": "normal",
+  "preferredNotifChannel": "kitty",
+  "autoCompactEnabled": false,
+  "agentPushNotifEnabled": true,
+  "voiceEnabled": true,
+  "model": "claude-fable-5[1m]"
+}

@@ -1,0 +1,53 @@
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
+personality = "pragmatic"
+approvals_reviewer = "user"
+
+[features]
+goals = true
+terminal_resize_reflow = true
+memories = true
+mentions_v2 = true
+prevent_idle_sleep = true
+
+[notice]
+hide_full_access_warning = true
+hide_gpt5_1_migration_prompt = true
+"hide_gpt-5.1-codex-max_migration_prompt" = true
+hide_rate_limit_model_nudge = true
+fast_default_opt_out = true
+
+[notice.model_migrations]
+"gpt-5.1-codex-max" = "gpt-5.2-codex"
+
+[tui]
+status_line = ["model-with-reasoning", "context-remaining", "current-dir", "git-branch", "five-hour-limit", "weekly-limit"]
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+"gpt-5.6-sol" = 4
+
+[plugins."canva@openai-curated"]
+enabled = true
+
+[plugins."github@openai-curated"]
+enabled = true
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+personality = "pragmatic"
+approvals_reviewer = "user"
+service_tier = "fast"
+
+[plugins."superpowers@openai-curated"]
+enabled = true
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+
+[hooks.state]
+
+[hooks.state."/home/human/openVman/.codex/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:d0ee8a2749dfd93e786ef999e56daecfe082da0787330fa4de02e03a2f1f274c"
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+personality = "pragmatic"
+approvals_reviewer = "user"

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "codex-cli-mcp-tool": {
+      "command": "npx",
+      "args": ["-y", "@trishchuk/codex-mcp-tool"]
+    }
+  }
+}
