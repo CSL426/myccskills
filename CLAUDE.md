@@ -1,6 +1,6 @@
 # ai-config 專案指引
 
-這個 repo 集中管理多個 AI CLI(Claude Code / Codex / Antigravity)的設定,是 **skill、agent、command、MCP、rule 的管理中樞**。在這裡工作的主要任務通常是:評估新資源 → 決定安裝位置 → 跑 `ai-config.sh` 擴散到其他 CLI → 提交版本控制。
+這個 repo 集中管理多個 AI CLI(Claude Code / Codex / Antigravity)的設定,是 **skill、agent、command、MCP、rule 的管理中樞**。在這裡工作的主要任務通常是:評估新資源 → 決定安裝位置 → 跑 `ai-config.sh`(Linux / Unix)或 `ai-config.ps1`(Windows)擴散到其他 CLI → 提交版本控制。
 
 核心模型:**repo 是 source of truth**。`init` 把 live 設定收進 repo;`apply` 把 repo 設定部署到各工具 home 目錄。詳細指令見 `README.md` 與 `ai-config-sync` skill。
 
@@ -15,6 +15,8 @@
 | `agy/` | settings.json, mcp_config.json, skills/ | `~/.gemini/antigravity-cli/` |
 | `scripts/` | 各工具的 init/apply 實作(claude.sh / codex.sh / agy.sh) | — |
 | `tests/` | sync 邏輯的 pytest 測試 | — |
+
+Windows 11 原生流程使用根目錄的 `ai-config.ps1`,不需要 WSL、Bash 或 `rsync`;完整平台說明與指令對照見 `README.md`。
 
 注意:`~/.claude/skills/` **不在同步範圍內**。要跨 CLI 的 skill 必須放 `claude/shared/`;要給 Claude Code 用則在 `~/.claude/skills/` 另放一份副本。
 
@@ -54,5 +56,5 @@
 - **credentials 永不進 repo**:`.credentials.json`、`auth.json`、`oauth_creds.json` 等腳本已自動排除;不要繞過。
 - **`status` 先於 `apply`**:live 端有未收集的變更時,先 `init` 收進 repo,否則 `apply` 會把舊設定蓋回去。
 - **不 bundle 無關變更**:commit 只包含本次任務動到的檔案;`init` 順帶收進來的其他 live 變更要向使用者說明、分開處理。
-- **改 `ai-config.sh` / `scripts/*.sh` 後必跑測試**:`pytest tests/`。
+- **改 `ai-config.sh` / `ai-config.ps1` / `scripts/*.sh` 後必跑測試**:`pytest tests/`。
 - shared skill 鏡像有 drift 偵測(`metadata.mirror-of` / `mirror-hash`),`status` 警告 mirror 過期時,更新內容並同步 mirror-hash。

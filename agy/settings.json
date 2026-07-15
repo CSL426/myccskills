@@ -26,10 +26,11 @@
       "command(pytest)"
     ]
   },
+  "runningLightSpeed": "fast",
   "statusLine": {
     "type": "command",
-    "command": "5h limit 7day",
-    "enabled": false
+    "command": "bash ~/.claude/statusline.sh",
+    "enabled": true
   },
   "toolPermission": "always-proceed",
   "trustedWorkspaces": [
