@@ -257,3 +257,19 @@ def test_status_reports_no_plugin_drift_when_aligned(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr + result.stdout
     assert "No plugin drift detected" in result.stdout
+
+
+def test_quoted_description_yields_valid_short_description(tmp_path: Path) -> None:
+    repo_dir, home_dir = make_repo(tmp_path)
+    write(
+        repo_dir / "claude/agents/quoted-agent.md",
+        '---\nname: quoted-agent\n'
+        'description: "Anti-slop skill for pages. Use when building."\n'
+        "---\nBody.\n",
+    )
+
+    result = run_ai_config(repo_dir, home_dir, "apply", "codex")
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    skill = (home_dir / ".codex/skills/quoted-agent/SKILL.md").read_text(encoding="utf-8")
+    assert "  short-description: 'Anti-slop skill for pages'\n" in skill

@@ -38,8 +38,6 @@ personality = "pragmatic"
 approvals_reviewer = "user"
 service_tier = "fast"
 
-[plugins."superpowers@openai-curated"]
-enabled = true
 [mcp_servers.openaiDeveloperDocs]
 url = "https://developers.openai.com/mcp"
 

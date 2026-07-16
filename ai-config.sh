@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Git Bash / MSYS / Cygwin lack rsync and silently degrade symlinks to copies,
+# which would corrupt the multi-home sharing model. Windows uses ai-config.ps1.
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        echo "✗ Windows shell detected — run ai-config.ps1 from PowerShell instead:" >&2
+        echo "    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass" >&2
+        echo "    .\\ai-config.ps1 status" >&2
+        exit 1 ;;
+esac
+
 # ai-config: Cross-AI tool configuration management CLI
 # Manages portable config files for Claude Code, Codex, Antigravity CLI
 
@@ -138,7 +148,11 @@ sanitize_skill_frontmatter() {
             return s
         }
 
-        BEGIN { in_front=0; done=0 }
+        # Single-quote a scalar, doubling inner quotes — mirrors the PS1
+        # ConvertTo-YamlScalar so both platforms emit identical output.
+        function yaml_squote(s) { gsub(q, q q, s); return q s q }
+
+        BEGIN { in_front=0; done=0; q = sprintf("%c", 39) }
 
         # Opening fence
         /^---$/ && !in_front && !done {
@@ -158,7 +172,15 @@ sanitize_skill_frontmatter() {
                 print "  " desc_val
             }
             if (!has_short) {
-                short = first_sentence(desc_val != "" ? desc_val : (name_val != "" ? name_val : "skill"))
+                # Mirror the PS1 normalization: block scalars and unparsable
+                # quoted values fall back to the name; a cleanly double-quoted
+                # description loses its quotes (keeping them once truncated the
+                # closing quote and produced invalid YAML — the hallmark bug).
+                d = desc_val
+                if (d == "" || d ~ /^[|>]/) d = (name_val != "" ? name_val : "skill")
+                else if (d ~ /^"[^"\\]*"$/) d = substr(d, 2, length(d) - 2)
+                else if (substr(d, 1, 1) == "\"" || substr(d, 1, 1) == q) d = (name_val != "" ? name_val : "skill")
+                short = yaml_squote(first_sentence(d))
                 if (has_meta) {
                     # metadata: block exists but no short-description — append nested
                     print "  short-description: " short
