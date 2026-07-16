@@ -562,6 +562,62 @@ check_shared_mirrors() {
     return 0
 }
 
+# ─── PLUGIN DRIFT ─────────────────────────────────────────────
+
+# Plugins live in each CLI's own registry/cache, outside file sync. The repo
+# still records intent: claude/settings.json enabledPlugins (a listed key —
+# true OR false — means the plugin is deliberately kept) and codex/config.toml
+# [plugins.*] blocks. A plugin present in a live registry but absent from the
+# repo's intent was removed on the Claude side and lingers elsewhere (how
+# superpowers survived in agy). status warns; removal stays manual for agy,
+# while codex heals on the next apply (merge drops live-only plugin blocks).
+check_plugin_drift() {
+    local drift=0 key
+
+    local claude_settings="$CLAUDE_SOURCE_DIR/settings.json"
+    local claude_keys=""
+    if [[ -f "$claude_settings" ]]; then
+        # enabledPlugins entries are the only "name@marketplace": true/false
+        # pairs in settings.json, so match the shape instead of tracking braces.
+        claude_keys="$(grep -o '"[^"]*@[^"]*"[[:space:]]*:[[:space:]]*\(true\|false\)' "$claude_settings" | sed 's/^"//; s/".*//' || true)"
+    fi
+
+    local agy_registry="$AGY_HOME/plugins/installed_plugins.json"
+    if [[ -f "$agy_registry" && -n "$claude_keys" ]]; then
+        local agy_keys
+        agy_keys="$(grep -o '"[^"]*@[^"]*"[[:space:]]*:[[:space:]]*\[' "$agy_registry" | sed 's/^"//; s/".*//' || true)"
+        while IFS= read -r key; do
+            [[ -n "$key" ]] || continue
+            if ! grep -Fxq "$key" <<< "$claude_keys"; then
+                log_warn "agy has plugin not tracked in claude/settings.json: $key"
+                echo -e "    remove with: ${CYAN}agy plugin uninstall $key${NC}"
+                drift=$((drift + 1))
+            fi
+        done <<< "$agy_keys"
+    fi
+
+    local repo_codex="$SCRIPT_DIR/codex/config.toml"
+    local live_codex="$CODEX_HOME/config.toml"
+    if [[ -f "$repo_codex" && -f "$live_codex" ]]; then
+        local repo_codex_keys live_codex_keys
+        repo_codex_keys="$(grep -o '^\[plugins\."[^"]*"\]' "$repo_codex" | sed 's/^\[plugins\."//; s/"\]$//' || true)"
+        live_codex_keys="$(grep -o '^\[plugins\."[^"]*"\]' "$live_codex" | sed 's/^\[plugins\."//; s/"\]$//' || true)"
+        while IFS= read -r key; do
+            [[ -n "$key" ]] || continue
+            if ! grep -Fxq "$key" <<< "$repo_codex_keys"; then
+                log_warn "codex live config has plugin not in repo codex/config.toml: $key"
+                echo -e "    next ${CYAN}apply${NC} removes the config block; also run ${CYAN}codex${NC} plugin uninstall if installed"
+                drift=$((drift + 1))
+            fi
+        done <<< "$live_codex_keys"
+    fi
+
+    if [[ "$drift" -eq 0 ]]; then
+        log_success "No plugin drift detected"
+    fi
+    return 0
+}
+
 # ─── LIST ─────────────────────────────────────────────────────
 
 do_list() {
@@ -747,6 +803,8 @@ main() {
             done
             log_header "Shared skill mirrors"
             check_shared_mirrors
+            log_header "Plugin drift"
+            check_plugin_drift
             ;;
         list)   do_list ;;
         reset)  do_reset ;;

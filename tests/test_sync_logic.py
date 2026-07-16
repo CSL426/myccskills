@@ -201,3 +201,59 @@ def test_commands_dir_is_applied_to_claude_home(tmp_path: Path) -> None:
     assert (
         home_dir / ".claude/commands/commit.md"
     ).read_text(encoding="utf-8") == "---\ndescription: x\n---\nbody\n"
+
+
+# ─── plugin drift detection ───────────────────────────────────
+
+
+def test_status_warns_when_agy_has_plugin_claude_dropped(tmp_path: Path) -> None:
+    repo_dir, home_dir = make_repo(tmp_path)
+    write(
+        repo_dir / "claude/settings.json",
+        '{"enabledPlugins": {"keep@mp": true, "disabled@mp": false}}\n',
+    )
+    write(
+        home_dir / ".gemini/antigravity-cli/plugins/installed_plugins.json",
+        '{"version": 1, "plugins": {'
+        '"keep@mp": [{"version": "1.0.0"}], '
+        '"disabled@mp": [{"version": "1.0.0"}], '
+        '"ghost@mp": [{"version": "5.1.0"}]}}\n',
+    )
+
+    result = run_ai_config(repo_dir, home_dir, "status")
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "agy has plugin not tracked in claude/settings.json: ghost@mp" in result.stdout
+    assert "keep@mp" not in result.stdout.replace("ghost@mp", "")
+    assert "disabled@mp\n" not in result.stdout
+
+
+def test_status_warns_when_live_codex_has_plugin_repo_dropped(tmp_path: Path) -> None:
+    repo_dir, home_dir = make_repo(tmp_path)
+    write(repo_dir / "claude/settings.json", '{"enabledPlugins": {"keep@mp": true}}\n')
+    write(
+        home_dir / ".codex/config.toml",
+        'model = "gpt-5"\n\n[plugins."lingering@openai-curated"]\nenabled = true\n',
+    )
+
+    result = run_ai_config(repo_dir, home_dir, "status")
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert (
+        "codex live config has plugin not in repo codex/config.toml: lingering@openai-curated"
+        in result.stdout
+    )
+
+
+def test_status_reports_no_plugin_drift_when_aligned(tmp_path: Path) -> None:
+    repo_dir, home_dir = make_repo(tmp_path)
+    write(repo_dir / "claude/settings.json", '{"enabledPlugins": {"keep@mp": true}}\n')
+    write(
+        home_dir / ".gemini/antigravity-cli/plugins/installed_plugins.json",
+        '{"version": 1, "plugins": {"keep@mp": [{"version": "1.0.0"}]}}\n',
+    )
+
+    result = run_ai_config(repo_dir, home_dir, "status")
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "No plugin drift detected" in result.stdout
