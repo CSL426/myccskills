@@ -116,10 +116,13 @@ sanitize_skill_frontmatter() {
     content="$(cat)"
 
     # Check if file starts with ---
-    if ! echo "$content" | grep -q $'^---'; then
+    # NOTE: plain bash checks, no pipelines — `grep -q`/`awk ... exit` close the
+    # pipe early and SIGPIPE the echo on >64KB files, which pipefail+set -e
+    # turns into a silent 141 death (bit us via hallmark's 67KB SKILL.md).
+    if [[ "$content" != ---* ]]; then
         # Derive skill name from first # heading, falling back to "skill"
         local skill_name
-        skill_name="$(echo "$content" | awk '/^# / { sub(/^# /, ""); print; exit }')"
+        skill_name="$(echo "$content" | awk '/^# / && !found { sub(/^# /, ""); print; found=1 }')"
         skill_name="${skill_name:-skill}"
         # Prepend minimal frontmatter
         content="$(printf -- '---\nname: %s\n---\n' "$skill_name")"$'\n'"$content"
