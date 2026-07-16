@@ -32,8 +32,6 @@
   "enabledPlugins": {
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
     "context7@claude-plugins-official": false,
-    "code-simplifier@claude-plugins-official": true,
-    "code-review@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,

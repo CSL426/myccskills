@@ -2,7 +2,7 @@
 # Claude Code: init, apply helpers
 # Claude is the source of truth — init syncs everything, including deletions.
 
-CLAUDE_MANAGED_FILES=(CLAUDE.md mcp.json settings.json)
+CLAUDE_MANAGED_FILES=(CLAUDE.md mcp.json settings.json statusline.sh)
 CLAUDE_MANAGED_DIRS=(rules agents commands)
 
 stage_claude_projection() {

@@ -387,7 +387,7 @@ function Get-ManagedBackupPaths {
     switch ($Tool) {
         'claude' {
             return @(
-                'CLAUDE.md', 'mcp.json', 'settings.json',
+                'CLAUDE.md', 'mcp.json', 'settings.json', 'statusline.sh',
                 'rules', 'agents', 'commands'
             )
         }
@@ -575,7 +575,7 @@ function Assert-ToolDestinationsSafe {
         }
         switch ($tool) {
             'claude' {
-                foreach ($name in @('CLAUDE.md', 'mcp.json', 'settings.json')) {
+                foreach ($name in @('CLAUDE.md', 'mcp.json', 'settings.json', 'statusline.sh')) {
                     Assert-SafeWriteTarget (Join-Path $liveDirectory $name)
                 }
                 foreach ($name in @('rules', 'agents', 'commands')) {
@@ -1426,13 +1426,13 @@ function Stage-ClaudeProjection {
     $source = Join-Path $PSScriptRoot 'claude'
     $managedSources = New-Object Collections.Generic.List[string]
     foreach ($name in @(
-        'CLAUDE.md', 'mcp.json', 'settings.json',
+        'CLAUDE.md', 'mcp.json', 'settings.json', 'statusline.sh',
         'rules', 'agents', 'commands'
     )) {
         $managedSources.Add((Join-Path $source $name))
     }
     Assert-ProjectionSourcesSafe $managedSources.ToArray()
-    foreach ($name in @('CLAUDE.md', 'mcp.json', 'settings.json')) {
+    foreach ($name in @('CLAUDE.md', 'mcp.json', 'settings.json', 'statusline.sh')) {
         Copy-File (Join-Path $source $name) (Join-Path $Destination $name)
     }
     foreach ($name in @('rules', 'agents', 'commands')) {
@@ -1654,14 +1654,14 @@ function Invoke-InitClaude {
     if (-not (Test-Path -LiteralPath $source -PathType Container)) {
         throw "Claude config directory not found: $source"
     }
-    foreach ($name in @('CLAUDE.md', 'mcp.json', 'settings.json')) {
+    foreach ($name in @('CLAUDE.md', 'mcp.json', 'settings.json', 'statusline.sh')) {
         Assert-NoReparsePoints (Join-Path $source $name)
     }
     foreach ($name in @('rules', 'agents', 'commands')) {
         Assert-NoReparsePoints (Join-Path $source $name)
     }
     $destination = Join-Path $PSScriptRoot 'claude'
-    foreach ($name in @('CLAUDE.md', 'mcp.json', 'settings.json')) {
+    foreach ($name in @('CLAUDE.md', 'mcp.json', 'settings.json', 'statusline.sh')) {
         $sourcePath = Join-Path $source $name
         $destinationPath = Join-Path $destination $name
         if (Test-Path -LiteralPath $sourcePath -PathType Leaf) {
@@ -2026,7 +2026,7 @@ function Apply-ClaudeProjection {
     )
 
     $destination = Join-Path $HomeDirectory '.claude'
-    foreach ($name in @('CLAUDE.md', 'mcp.json', 'settings.json')) {
+    foreach ($name in @('CLAUDE.md', 'mcp.json', 'settings.json', 'statusline.sh')) {
         Copy-File (Join-Path $Stage $name) (Join-Path $destination $name)
     }
     foreach ($name in @('rules', 'agents', 'commands')) {

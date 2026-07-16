@@ -242,7 +242,7 @@ project_agents_to_skills() {
 # Backup covers ONLY the paths apply can modify. Runtime data (plugin caches,
 # session transcripts, browser recordings) is never touched by apply, so
 # backing it up bloated ~/.ai-config-backup into the tens of GB.
-CLAUDE_BACKUP_PATHS=(CLAUDE.md mcp.json settings.json rules agents commands)
+CLAUDE_BACKUP_PATHS=(CLAUDE.md mcp.json settings.json statusline.sh rules agents commands)
 CODEX_BACKUP_PATHS=(AGENTS.md config.toml rules skills)
 AGY_BACKUP_PATHS=(mcp_config.json settings.json skills plugins)
 BACKUP_KEEP=5
