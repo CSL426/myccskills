@@ -2,10 +2,17 @@
 set -euo pipefail
 
 # Git Bash / MSYS / Cygwin lack rsync and silently degrade symlinks to copies,
-# which would corrupt the multi-home sharing model. Windows uses ai-config.ps1.
+# which would corrupt the multi-home sharing model. Windows uses ai-config.ps1 —
+# delegate to it so `./ai-config.sh <cmd>` works from Git Bash too.
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        echo "✗ Windows shell detected — run ai-config.ps1 from PowerShell instead:" >&2
+        if command -v powershell.exe >/dev/null 2>&1; then
+            echo "ℹ Windows shell detected — delegating to ai-config.ps1" >&2
+            exec powershell.exe -NoProfile -ExecutionPolicy Bypass \
+                -File "$(dirname "$0")/ai-config.ps1" "$@"
+        fi
+        echo "✗ Windows shell detected and powershell.exe not found —" >&2
+        echo "  run ai-config.ps1 from a PowerShell window:" >&2
         echo "    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass" >&2
         echo "    .\\ai-config.ps1 status" >&2
         exit 1 ;;
