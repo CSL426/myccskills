@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve symlinks so a PATH link (~/.local/bin/ai-config) still locates the
+# real repo, not the link's directory. Guarded: readlink may be absent from a
+# minimal PATH, in which case direct (non-symlink) invocation still works.
+_src="${BASH_SOURCE[0]}"
+if command -v readlink >/dev/null 2>&1; then
+    while [[ -L "$_src" ]]; do
+        _target="$(readlink "$_src")"
+        [[ "$_target" != /* ]] && _target="$(dirname "$_src")/$_target"
+        _src="$_target"
+    done
+fi
+SCRIPT_DIR="$(cd "$(dirname "$_src")" && pwd)"
 
 PYTHON=()
 for candidate in python3 python; do

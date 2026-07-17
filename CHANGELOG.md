@@ -7,6 +7,8 @@
 ### Added
 
 - 新增 Python 3.11+ 共用 CLI 核心,統一 Linux、Windows 的 `init`、`apply`、`project`、`status`、`list`、`reset` 行為。
+- 新增 `pyproject.toml` 與 `ai_config/cli.py`，支援透過 `pipx` 進行本機可開發式（editable）安裝，提供全域 `ai-config` 指令。
+- 新增 `sync` 子命令，支援自動執行 `git pull --rebase --autostash` 並顯示狀態差異。
 - 新增 Python 版 Windows Junction、ownership-safe copy fallback、原子備份、apply lock、reparse/path traversal 防護與跨平台 contract tests。
 - 新增 Ubuntu/Windows 的 Python 3.11 與 3.12 CI 矩陣。
 - 新增原生 Windows `ai-config.ps1`，支援 Windows PowerShell 5.1 與 PowerShell 7，不依賴 WSL、Bash 或 `rsync`。

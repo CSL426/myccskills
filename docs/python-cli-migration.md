@@ -126,6 +126,9 @@ ai-config/
 
 ## 7. 遷移後另案(不在本計畫範圍)
 
+- [x] pipx 可安裝封裝 (已完成)
+- [x] `sync` 子命令支援 (已完成)
 - plugin manifest(方案 B):跨 CLI plugin 對照表 + apply 強制對齊。
 - agy `trustedWorkspaces` 比照 codex `[projects.*]` 排除出同步。
+- **project 模式的 plugin 鏡射要過濾**:`stage_agy_projection` 目前把 `~/.claude/plugins/` 整包鏡射給 agy,包含 Claude registry 裡「已安裝但非 ai-config 管理意圖」的 plugin(例如僅供某專案 project-scope 使用的 agent-sdk-dev),導致 agy 端殭屍復活(2026-07-16 實案)。應改為只鏡射 repo `claude/settings.json` enabledPlugins 列出的 key,與 plugin drift 檢查的「意圖」定義一致。
 - ps1 時代遺留的七處硬編碼清單教訓 → 常數集中化已由架構自然解決。

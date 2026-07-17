@@ -2,7 +2,9 @@
 
 import argparse
 import difflib
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from datetime import datetime
@@ -359,6 +361,39 @@ def do_project(tool: str) -> bool:
     return ok
 
 
+def show_status(tool: str) -> None:
+    for selected_tool in ALL_TOOLS:
+        if tool in ("all", selected_tool):
+            status_tool(selected_tool)
+    log_header("Shared skill mirrors")
+    check_shared_mirrors()
+    log_header("Plugin drift")
+    check_plugin_drift()
+
+
+def do_sync(tool: str) -> int:
+    log_header("Sync repository changes")
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(SCRIPT_DIR), "pull", "--rebase", "--autostash"]
+        )
+        if result.returncode != 0:
+            return result.returncode
+    except FileNotFoundError:
+        log_error("git command not found. Please install git.")
+        return 1
+    except Exception as exc:
+        log_error(f"Failed to execute git pull: {exc}")
+        return 1
+
+    print()
+    show_status(tool)
+
+    print()
+    log_info(f"Run {ENTRYPOINT} apply to deploy")
+    return 0
+
+
 # ─── main ─────────────────────────────────────────────────────
 
 
@@ -373,6 +408,7 @@ def usage() -> None:
     print("  apply [tool]    Deploy configs from ai-config/ to tool home directories")
     print("  project [tool]  Project ~/.claude/ directly to other tool home dirs")
     print("  status [tool]   Show diff between ai-config/ and current tool configs")
+    print("  sync [tool]     Pull latest repo changes, then show status")
     print("  list            List managed tools")
     print("  reset           Delete all managed config files")
     print("  help            Show this help")
@@ -394,6 +430,17 @@ def resolve_tool(tool: str) -> str:
 
 
 def main(argv: "list[str] | None" = None) -> int:
+    if "PYTEST_CURRENT_TEST" not in os.environ and not (SCRIPT_DIR / "claude").is_dir():
+        log_error(
+            f"Repository configuration directory not found at {SCRIPT_DIR}.\n"
+            "To fix this, please either:\n"
+            "  1. Reinstall using editable mode: pipx install --editable <path-to-repo>\n"
+            "  2. Set the AI_CONFIG_REPO environment variable to your repository path:\n"
+            "     Linux/macOS: export AI_CONFIG_REPO=<path-to-repo>\n"
+            "     Windows: setx AI_CONFIG_REPO <path-to-repo>"
+        )
+        return 1
+
     args = sys.argv[1:] if argv is None else argv
     if not args:
         usage()
@@ -436,14 +483,12 @@ def main(argv: "list[str] | None" = None) -> int:
     elif cmd == "project":
         if not do_project(tool):
             return 1
+    elif cmd == "sync":
+        code = do_sync(tool)
+        if code != 0:
+            return code
     elif cmd == "status":
-        for t in ALL_TOOLS:
-            if tool in ("all", t):
-                status_tool(t)
-        log_header("Shared skill mirrors")
-        check_shared_mirrors()
-        log_header("Plugin drift")
-        check_plugin_drift()
+        show_status(tool)
     elif cmd == "list":
         do_list()
     elif cmd == "reset":

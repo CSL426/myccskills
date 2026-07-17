@@ -14,36 +14,58 @@
 | `codex/` | Codex CLI | `~/.codex/` | `AGENTS.md`、`config.toml`、`rules/`、`skills/` |
 | `agy/` | Antigravity CLI | `~/.gemini/antigravity-cli/` | `settings.json`、`mcp_config.json`、`skills/`、`plugins/` |
 
-## 快速開始
+## 安裝與快速開始
 
-### Windows 11 原生 PowerShell
+本工具支援透過 `pipx` 進行本機可開發式（editable）安裝，安裝後即可在系統的任何目錄直接執行 `ai-config` 全域指令。
 
-Windows PowerShell 5.1 與 PowerShell 7 都使用同一支 `ai-config.ps1`：
+### 全域安裝模式 (推薦)
 
-```powershell
-git clone <repo-url> "$HOME\ai-config"
-Set-Location "$HOME\ai-config"
+1. **複製本儲存庫**：
+   ```bash
+   git clone <repo-url> "$HOME/ai-config"
+   cd "$HOME/ai-config"
+   ```
 
-# 只有目前的 ExecutionPolicy 阻擋本機 script 時才需要；設定只維持此 process。
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+2. **使用 pipx 安裝**（重點：指定**系統 Python** 建 venv,不要讓指令綁死在 pyenv / conda 等版本管理器的直譯器上——那些環境一換版本,指令就會斷）：
+   * **Linux / macOS**：
+     如果您之前已手動在 `~/.local/bin` 建立了別名或 symlink，請先移除它：
+     ```bash
+     rm -f ~/.local/bin/ai-config
+     ```
+     然後執行：
+     ```bash
+     pipx install --python /usr/bin/python3 --editable .
+     ```
+   * **Windows**：
+     ```powershell
+     pipx install --editable .
+     ```
+   * **沒有 pipx 的環境**（手動 venv,與 pipx 效果等價）：
+     ```bash
+     /usr/bin/python3 -m venv ~/.venvs/ai-config
+     ~/.venvs/ai-config/bin/pip install --editable .
+     ln -sf ~/.venvs/ai-config/bin/ai-config ~/.local/bin/ai-config
+     ```
+     *(避免 `pip install --user`：console script 的 shebang 會硬指當下的直譯器路徑,pyenv 換版本後指令即失效)*
 
-# 先確認 repo 與本機設定的差異，再部署。
-.\ai-config.ps1 status
-.\ai-config.ps1 apply
-```
+3. **開始使用**：
+   安裝後即可在任何目錄直接執行 `ai-config` 全域指令：
+   ```bash
+   # 檢查設定差異
+   ai-config status
 
-`ai-config.ps1` 只負責尋找 Python 3.11+、設定 module path 並轉交參數與 exit code；沒有 WSL 的機器也能直接使用。
+   # 拉取最新變更並檢查狀態
+   ai-config sync
 
-### Linux / 相容 Unix 環境
+   # 部署設定到各工具的主目錄
+   ai-config apply
+   ```
 
-```bash
-git clone <repo-url> "$HOME/ai-config"
-cd "$HOME/ai-config"
+### 現場執行模式 (免安裝)
 
-# 先確認 repo 與本機設定的差異，再部署。
-./ai-config.sh status
-./ai-config.sh apply
-```
+若您不想將指令安裝到系統環境中，亦可直接執行儲存庫根目錄的 wrapper 腳本：
+* **Linux / Unix**：使用 `./ai-config.sh`
+* **Windows**：使用 `.\ai-config.ps1` (若提示 ExecutionPolicy 限制，可執行 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` 解鎖)。
 
 第一次要把現有機器的設定收進 repo 時，先執行 `status` 檢查範圍，再執行 `init`。`init` 會修改 repo 內的受管理設定；請在提交前檢查 `git diff`，不要直接把無關變更一起提交。
 
@@ -57,6 +79,7 @@ cd "$HOME/ai-config"
 | 部署設定 | `./ai-config.sh apply [tool]` | `.\ai-config.ps1 apply [tool]` | 從 repo 部署到工具 home；執行前應先跑 `status` |
 | 直接投影 | `./ai-config.sh project [tool]` | `.\ai-config.ps1 project [tool]` | 以目前的 `~/.claude/` 為來源，直接投影到 Codex / agy；不先寫回 repo |
 | 檢查差異 | `./ai-config.sh status [tool]` | `.\ai-config.ps1 status [tool]` | 唯讀比較 repo 投影結果與目前生效設定，顯示雙方 mtime 先後提示，並檢查 shared skill mirror drift |
+| 拉取與對照 | `./ai-config.sh sync [tool]` | `.\ai-config.ps1 sync [tool]` | 從遠端拉取最新變更（`git pull`），成功後自動執行 `status` 顯示設定差異 |
 | 列出狀態 | `./ai-config.sh list` | `.\ai-config.ps1 list` | 列出各工具的受管理檔案數與完成的備份數 |
 | 清空 repo 設定 | `./ai-config.sh reset` | `.\ai-config.ps1 reset` | 經確認後清空 repo 內設定，只保留目錄骨架 |
 
@@ -130,19 +153,16 @@ ai-config/
 
 根目錄的 `CLAUDE.md`、`AGENTS.md` 與 `GEMINI.md` 都是普通檔案，不依賴 Windows symlink。測試會要求三者內容 byte-identical，修改共用指令時必須同步更新三份。
 
-## 典型同步流程
+## 典型同步流程（雙機工作流範例）
 
-在來源機器：
+在**機器 A**（修改設定側）：
+1. 執行 `ai-config status`，確認本機修改與 repo 的差異。
+2. 執行 `ai-config init [tool]`，把預期的本機變更收集回 repo。
+3. 檢查 `git diff`，手動 commit 並 push 到遠端。
 
-1. 執行 `status`，確認 live 設定與 repo 的差異。
-2. 執行 `init [tool]`，把預期的 live 變更收進 repo。
-3. 檢查 `git diff`，再自行 commit / push。
-
-在其他機器：
-
-1. `git pull`。
-2. 執行 `status`，確認即將部署的差異。
-3. 執行 `apply [tool]`。
+在**機器 B**（同步部署側）：
+1. 執行 `ai-config sync [tool]`，這會自動從遠端進行拉取並顯示目前的 status 差異。
+2. 確認差異無誤後，執行 `ai-config apply [tool]` 將新設定部署到對應的 AI 工具主目錄。
 
 ## 測試
 

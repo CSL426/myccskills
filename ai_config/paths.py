@@ -3,7 +3,11 @@
 import os
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parents[1]
+repo_env = os.environ.get("AI_CONFIG_REPO")
+if repo_env:
+    SCRIPT_DIR = Path(repo_env).expanduser().resolve()
+else:
+    SCRIPT_DIR = Path(__file__).resolve().parents[1]
 
 HOME = Path(os.environ.get("HOME", str(Path.home())))
 WINDOWS_MODE = os.environ.get("AI_CONFIG_PLATFORM") == "windows" or os.name == "nt"

@@ -14,6 +14,7 @@
 | `codex/` | AGENTS.md, config.toml(不含 `[projects.*]`) | `~/.codex/` |
 | `agy/` | settings.json, mcp_config.json, skills/ | `~/.gemini/antigravity-cli/` |
 | `ai_config/` | 跨平台 Python CLI 核心、各工具投影、備份與連結策略 | 由兩個根 wrapper 呼叫 |
+| `pyproject.toml` | pipx/setuptools 包裝設定與 CLI entrypoint | — |
 | `legacy/` | 遷移前 Bash/PowerShell 完整實作,保留一個 release 週期 | 僅供 parity/回歸測試 |
 | `tests/` | sync 邏輯的 pytest 測試 | — |
 

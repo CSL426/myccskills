@@ -81,3 +81,22 @@ def test_shell_wrapper_reports_missing_python(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "requires Python 3.11 or newer" in result.stderr
+
+
+def test_shell_wrapper_works_through_path_symlink(tmp_path: Path) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    link = bin_dir / "ai-config"
+    link.symlink_to(REPO_ROOT / "ai-config.sh")
+
+    result = subprocess.run(
+        [str(link), "help"],
+        cwd=tmp_path,
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "./ai-config.sh <command> [tool]" in result.stdout
