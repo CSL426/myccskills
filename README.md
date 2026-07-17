@@ -4,8 +4,9 @@
 
 ## 支援平台
 
-- Windows 11：原生支援 Windows PowerShell 5.1 與 PowerShell 7，不需要 WSL、Bash 或 `rsync`。
-- Linux / 相容 Unix 環境：使用 Bash 版 CLI；需要 Bash、`rsync` 與 `sha256sum` 等既有命令列工具。
+- Windows 11：`ai-config.ps1` 薄 wrapper 呼叫共用 Python CLI,不需要 WSL、Bash 或 `rsync`。
+- Linux / 相容 Unix 環境：`ai-config.sh` 薄 wrapper 呼叫同一份 Python CLI。
+- 兩個平台都需要 Python 3.11 或更新版本；核心使用 Python standard library,執行 CLI 不需額外套件。
 
 | 資料夾 | 工具 | Home 目錄 | 主要管理內容 |
 |--------|------|-----------|--------------|
@@ -31,7 +32,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\ai-config.ps1 apply
 ```
 
-`ai-config.ps1` 是純 PowerShell / .NET 實作，不會呼叫 Bash、`rsync` 或其他 GNU 工具，因此沒有 WSL 的機器也能直接使用。
+`ai-config.ps1` 只負責尋找 Python 3.11+、設定 module path 並轉交參數與 exit code；沒有 WSL 的機器也能直接使用。
 
 ### Linux / 相容 Unix 環境
 
@@ -55,7 +56,7 @@ cd "$HOME/ai-config"
 | 收集設定 | `./ai-config.sh init [tool]` | `.\ai-config.ps1 init [tool]` | 從工具 home 收集受管理設定到 repo |
 | 部署設定 | `./ai-config.sh apply [tool]` | `.\ai-config.ps1 apply [tool]` | 從 repo 部署到工具 home；執行前應先跑 `status` |
 | 直接投影 | `./ai-config.sh project [tool]` | `.\ai-config.ps1 project [tool]` | 以目前的 `~/.claude/` 為來源，直接投影到 Codex / agy；不先寫回 repo |
-| 檢查差異 | `./ai-config.sh status [tool]` | `.\ai-config.ps1 status [tool]` | 唯讀比較 repo 投影結果與目前生效設定，並檢查 shared skill mirror drift |
+| 檢查差異 | `./ai-config.sh status [tool]` | `.\ai-config.ps1 status [tool]` | 唯讀比較 repo 投影結果與目前生效設定，顯示雙方 mtime 先後提示，並檢查 shared skill mirror drift |
 | 列出狀態 | `./ai-config.sh list` | `.\ai-config.ps1 list` | 列出各工具的受管理檔案數與完成的備份數 |
 | 清空 repo 設定 | `./ai-config.sh reset` | `.\ai-config.ps1 reset` | 經確認後清空 repo 內設定，只保留目錄骨架 |
 
@@ -74,31 +75,35 @@ cd "$HOME/ai-config"
 
 Codex 的 `~/.codex/` 是 canonical 設定來源；`~/.codex-csl/` 與 `~/.codex-set/` 保留各自的 auth、session 與 cache。Antigravity skill 的 canonical 位置是 `~/.gemini/antigravity/skills/`，CLI surface 位於 `~/.gemini/antigravity-cli/skills/`。
 
-Linux / 相容 Unix 環境的額外 Codex home 清單由 `ai-config.sh` 的 `CODEX_SHARED_HOMES` 定義；不存在的目錄會自動略過。
+Linux / 相容 Unix 環境的額外 Codex home 清單由 `ai_config/paths.py` 的 `CODEX_SHARED_HOMES` 定義；不存在的目錄會自動略過。
 
 Windows 不需要開啟 Developer Mode：
 
-- 受管理目錄可建立 Junction 時，PowerShell 版會以 Junction 共用 canonical 內容。
+- 受管理目錄可建立 Junction 時，Python CLI 會以 Junction 共用 canonical 內容。
 - Junction 不可用或目標是檔案時，會使用 copy fallback，並以 ownership state 與內容 fingerprint 判斷後續是否仍可安全更新。
 - 未標記為本工具擁有、fingerprint 已變更或指向不同來源的內容不會被直接覆蓋。
 
-Linux / 相容 Unix 環境的 Bash 版則使用 symlink 共用相同設定。
+Linux / 相容 Unix 環境則使用 symlink 共用相同設定。
 
 ## 安全機制
 
-- **先檢查再部署**：標準流程是 `status` → 確認差異 → `apply`；`status` 不修改 repo、工具 home 或備份。
-- **自動備份**：`apply` 與 `project` 在修改前，會把存在的受管理內容備份到 `~/.ai-config-backup/<timestamp>/`；只輪替本工具擁有且已完成的 snapshot，保留最新五份，不刪除外來或未完成目錄。
+- **先檢查再部署**：標準流程是 `status` → 確認差異 → `apply`；`status` 不修改 repo、工具 home 或備份,並會列出 exact mirror 與 managed skill manifest 預定刪除的 live-only 路徑。
+- **修改時間提示**：內容不同時,`status` 會列出 repo/live mtime 並標示 `repo newer`、`live newer` 或時間接近；投影與部署會保留來源 mtime。mtime 只供判斷先後,Git checkout 或外部 copy 仍可能改變它,不會據此自動覆蓋任何一側。
+- **自動備份**：`apply` 與 `project` 在修改前，只備份本次 stage 可能修改的受管理內容到 `~/.ai-config-backup/<timestamp>/`；未投影的 plugin cache 不會產生無效的大型備份。只輪替本工具擁有且已完成的 snapshot，保留最新五份，不刪除外來或未完成目錄。
+- **失敗可恢復**：若 apply 在建立 snapshot 後才失敗,CLI 會提示 live 設定可能只完成部分更新,並列出可人工恢復的 snapshot 路徑。
 - **憑證排除**：`.credentials.json`、`auth.json`、`oauth_creds.json`、`google_accounts.json`、`trustedFolders.json` 不會被收集、部署或放入受管理備份。
 - **Codex projects 保留**：部署 `config.toml` 時保留目標機器既有的 `[projects.*]` 區塊，只更新可攜的通用設定；`status` 也忽略本機 projects 差異。
 - **ownership-safe fallback**：Windows copy fallback 只會更新仍符合既有 ownership record 與 fingerprint 的路徑，避免接管使用者自行建立或修改的內容。
-- **路徑防護**：PowerShell 版會先檢查受管理來源、目的地、備份與 ownership state 的 reparse point / path traversal 風險，再開始修改。
+- **路徑防護**：Python CLI 會先檢查受管理來源、目的地、備份與 ownership state 的 reparse point / path traversal 風險，再開始修改。
 
 ## Repository 結構
 
 ```text
 ai-config/
-├── ai-config.sh           # Linux / 相容 Unix 環境的 Bash CLI
-├── ai-config.ps1          # Windows 原生 PowerShell CLI
+├── ai-config.sh           # Linux / Unix Python wrapper
+├── ai-config.ps1          # Windows PowerShell Python wrapper
+├── ai_config/             # 共用 Python CLI 核心
+├── legacy/                # 遷移前完整 Bash/PowerShell 實作(暫留一個 release 週期)
 ├── CLAUDE.md              # repository 層級共用指令
 ├── AGENTS.md              # 與 CLAUDE.md byte-identical 的普通檔案
 ├── GEMINI.md              # 與 CLAUDE.md byte-identical 的普通檔案
@@ -141,7 +146,16 @@ ai-config/
 
 ## 測試
 
-測試需要 Python、pytest 與 PyYAML。Windows 可分別指定 Windows PowerShell 5.1 或 PowerShell 7：
+測試需要 Python、pytest 與 PyYAML。主測試預設直接驗證 Python CLI：
+
+```bash
+python -m pip install pytest PyYAML ruff
+python -m pytest tests/
+ruff check ai_config tests
+bash -n ai-config.sh legacy/ai-config.sh legacy/scripts/*.sh
+```
+
+Windows CI 會用 Python 3.11 與 3.12 跑相同 contract,包含原生 Junction 成功案例。遷移期另保留 Windows PowerShell 5.1 / PowerShell 7 的 legacy parity job：
 
 ```powershell
 python -m pip install pytest PyYAML
@@ -150,21 +164,14 @@ $windowsTests = @(
     "tests/test_windows_sync.py"
 )
 
-# Windows PowerShell 5.1
+# Windows PowerShell 5.1 legacy parity
 $env:PWSH = (Get-Command powershell.exe).Source
+$env:AI_CONFIG_IMPL = "ps1"
 python -m pytest @windowsTests
 
-# PowerShell 7
+# PowerShell 7 legacy parity
 $env:PWSH = (Get-Command pwsh.exe).Source
 python -m pytest @windowsTests
 ```
 
-Linux / 相容 Unix 環境若已安裝 PowerShell 7：
-
-```bash
-python -m pip install pytest PyYAML
-PWSH="$(command -v pwsh)" pytest tests/
-bash -n ai-config.sh scripts/*.sh
-```
-
-GitHub Actions 也會在 `windows-latest` 上分別以 Windows PowerShell 5.1 與 PowerShell 7 執行 Windows contract 與 repository invariant 測試。實際 CI 結果以 GitHub Actions run 為準。
+GitHub Actions 會在 Ubuntu 與 Windows 上各以 Python 3.11 / 3.12 驗證正式 Python CLI；legacy PowerShell job 僅保留遷移期對等證據。實際 CI 結果以 GitHub Actions run 為準。

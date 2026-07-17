@@ -6,6 +6,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
+IMPL = os.environ.get("AI_CONFIG_IMPL", "py")
+
 
 def write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -13,18 +15,32 @@ def write(path: Path, content: str) -> None:
 
 
 def copy_runtime_files(repo_dir: Path) -> None:
-    shutil.copy2(REPO_ROOT / "ai-config.sh", repo_dir / "ai-config.sh")
-    shutil.copytree(REPO_ROOT / "scripts", repo_dir / "scripts")
+    if IMPL == "py":
+        shutil.copy2(REPO_ROOT / "ai-config.sh", repo_dir / "ai-config.sh")
+        shutil.copytree(REPO_ROOT / "ai_config", repo_dir / "ai_config")
+    else:
+        shutil.copy2(REPO_ROOT / "legacy/ai-config.sh", repo_dir / "ai-config.sh")
+        shutil.copytree(REPO_ROOT / "legacy/scripts", repo_dir / "scripts")
     os.chmod(repo_dir / "ai-config.sh", 0o755)
 
 
-def run_ai_config(repo_dir: Path, home_dir: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def run_ai_config(
+    repo_dir: Path,
+    home_dir: Path,
+    *args: str,
+    input_text: "str | None" = None,
+) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["HOME"] = str(home_dir)
+    if IMPL == "py":
+        cmd = ["bash", "ai-config.sh", *args]
+    else:
+        cmd = ["bash", "ai-config.sh", *args]
     return subprocess.run(
-        ["bash", "ai-config.sh", *args],
+        cmd,
         cwd=repo_dir,
         env=env,
+        input=input_text,
         capture_output=True,
         text=True,
         check=False,

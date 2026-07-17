@@ -9,7 +9,7 @@ description: Use when the user wants to run, sync, share, or version-control AI 
 
 `~/ai-config` is a git repo that centralizes AI CLI configuration and syncs it between each tool's home dir and the repo (and across machines via git). Driven by `~/ai-config/ai-config.sh`.
 
-Core model: **repo is the source of truth.** `init` pulls live config INTO the repo; `apply` pushes repo config OUT to the live home dirs. Edit → `init` → commit/push → other machine `git pull` → `apply`.
+Core model: **repo is the source of truth.** `init` pulls live config INTO the repo; `apply` pushes repo config OUT to the live home dirs. `ai-config.sh` and `ai-config.ps1` are thin wrappers over the same Python 3.11+ core. Edit → `init` → commit/push → other machine `git pull` → `apply`.
 
 ## Executing a sync (when invoked to run, e.g. /ai-config-sync)
 
@@ -46,6 +46,7 @@ cd ~/ai-config && ./ai-config.sh <command> [tool]
 |---|---|
 | `init [tool]` | collect live config from home dirs INTO repo |
 | `apply [tool]` | deploy repo config OUT to home dirs (auto-backs up first) |
+| `project [tool]` | project live `~/.claude/` directly to Codex/agy (auto-backs up first) |
 | `status [tool]` | diff repo vs live config (read-only, safe to run anytime) |
 | `list` | list managed tools + file counts + backup snapshot count |
 | `reset` | wipe configs to empty skeleton (confirms first) |
@@ -58,12 +59,13 @@ cd ~/ai-config && ./ai-config.sh <command> [tool]
   - `claude/shared/agy/<skill>/` → agy only
   - The repo `shared/` copy is authoritative; deleting it there auto-removes the mirror (managed-skill reconciliation). If you also want Claude Code to use it, keep a second copy in `~/.claude/skills/<skill>/`.
 - **init vs apply:** changed config on THIS machine and want to save it → `init` (then commit). Want to pull someone else's committed config onto this machine → `apply`. When unsure, run `status` first — it's read-only.
+- **mtime is a hint, not authority:** for differing content, `status` shows repo/live modification times and labels the newer side. Use it to spot likely local edits, but remember Git checkout and external copy operations can change mtime; still confirm whether `init` or `apply` matches the user's intent.
 - **Always `status` before `apply`** to see what will change. `apply` auto-backs up to `~/.ai-config-backup/<timestamp>/` but previewing is cheaper than restoring.
 - **Codex multi-home:** `~/.codex` is the shared source; `~/.codex-csl`, `~/.codex-set` only hold their own auth/session/cache and symlink AGENTS.md/config.toml/rules/skills back to `~/.codex`. `apply codex` repairs those symlinks but never clobbers a real file or a different symlink.
 
 ## Safety (built into the script)
 
-- **Auto-backup** before every `apply` → `~/.ai-config-backup/<timestamp>/`.
+- **Auto-backup** before every `apply` and `project` → `~/.ai-config-backup/<timestamp>/`.
 - **Credentials never copied:** `.credentials.json`, `auth.json`, `oauth_creds.json`, `google_accounts.json`, `trustedFolders.json` are always excluded — never hardcode or stage secrets.
 - **Codex `[projects.*]` preserved:** `apply` keeps the target machine's project blocks, updating only general settings.
 - Shared skills sync only `SKILL.md` + `examples/` + `references/` + `scripts/` + `agents/` per skill.
@@ -74,7 +76,7 @@ cd ~/ai-config && ./ai-config.sh <command> [tool]
 2. Copy `SKILL.md` (+ supporting dirs) into `~/ai-config/claude/shared/both/<name>/`.
 3. `./ai-config.sh status` → confirm `+ skills/<name>/SKILL.md (only in ai-config)`.
 4. `./ai-config.sh apply` → mirrors it into Codex + agy skills dirs (auto-backup runs).
-5. `git add -A && git commit && git push` → other machines `git pull` + `apply`.
+5. Show `git status` and the exact proposed commit scope; only after explicit user approval, stage/commit/push. Other machines then use `git pull` + `apply`.
 
 ## Common mistakes
 

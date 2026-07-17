@@ -5,23 +5,18 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-def tracked_shell_scripts() -> list[str]:
-    result = subprocess.run(
-        ["git", "ls-files", "*.sh"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
+def repository_shell_scripts() -> list[str]:
+    shell_scripts = sorted(
+        path.relative_to(REPO_ROOT).as_posix()
+        for path in REPO_ROOT.rglob("*.sh")
+        if ".git" not in path.parts
     )
-
-    assert result.returncode == 0, result.stderr
-    shell_scripts = result.stdout.splitlines()
     assert shell_scripts
     return shell_scripts
 
 
 def test_shell_scripts_are_forced_to_lf_by_gitattributes() -> None:
-    shell_scripts = tracked_shell_scripts()
+    shell_scripts = repository_shell_scripts()
     result = subprocess.run(
         ["git", "check-attr", "eol", "--", *shell_scripts],
         cwd=REPO_ROOT,
@@ -36,7 +31,7 @@ def test_shell_scripts_are_forced_to_lf_by_gitattributes() -> None:
 
 
 def test_tracked_shell_scripts_do_not_contain_crlf() -> None:
-    shell_scripts = tracked_shell_scripts()
+    shell_scripts = repository_shell_scripts()
 
     for script in shell_scripts:
         assert b"\r\n" not in (REPO_ROOT / script).read_bytes(), (

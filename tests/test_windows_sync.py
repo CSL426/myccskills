@@ -3,7 +3,9 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -12,14 +14,16 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+IMPL = os.environ.get("AI_CONFIG_IMPL", "py")
+USE_PYTHON = IMPL == "py"
 PWSH = (
     os.environ.get("PWSH")
     or shutil.which("pwsh")
     or shutil.which("powershell")
 )
 requires_pwsh = pytest.mark.skipif(
-    PWSH is None,
-    reason="PowerShell runtime is not available",
+    not USE_PYTHON and PWSH is None,
+    reason="PowerShell runtime is not available and Python implementation was not selected",
 )
 
 
@@ -37,13 +41,17 @@ def load_frontmatter(content: str) -> dict[str, object]:
     return parsed
 
 
-def make_env(home_dir: Path) -> dict[str, str]:
+def make_env(
+    home_dir: Path, *, force_copy_fallback: bool = True
+) -> dict[str, str]:
     env = os.environ.copy()
     env["HOME"] = str(home_dir)
     env["USERPROFILE"] = str(home_dir)
     env["XDG_CONFIG_HOME"] = str(home_dir / ".config")
     env["XDG_DATA_HOME"] = str(home_dir / ".local/share")
     env["XDG_CACHE_HOME"] = str(home_dir.parent / ".runtime-cache")
+    if USE_PYTHON and force_copy_fallback:
+        env["AI_CONFIG_FORCE_COPY_FALLBACK"] = "1"
     return env
 
 
@@ -52,14 +60,30 @@ def run_script(
     home_dir: Path,
     *args: str,
     input_text: str | None = None,
+    force_copy_fallback: bool = True,
 ) -> subprocess.CompletedProcess[str]:
-    script = repo_dir / "ai-config.ps1"
-    assert script.is_file(), "ai-config.ps1 must exist before invoking the Windows CLI"
-    assert PWSH is not None
+    if USE_PYTHON:
+        command = [sys.executable, "-m", "ai_config", *args]
+    else:
+        script = repo_dir / "ai-config.ps1"
+        assert script.is_file(), "ai-config.ps1 must exist before invoking the Windows CLI"
+        assert PWSH is not None
+        command = [
+            PWSH,
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            str(script),
+            *args,
+        ]
+    env = make_env(home_dir, force_copy_fallback=force_copy_fallback)
+    if USE_PYTHON:
+        env["AI_CONFIG_PLATFORM"] = "windows"
     return subprocess.run(
-        [PWSH, "-NoLogo", "-NoProfile", "-NonInteractive", "-File", str(script), *args],
+        command,
         cwd=repo_dir,
-        env=make_env(home_dir),
+        env=env,
         capture_output=True,
         text=True,
         input=input_text,
@@ -68,7 +92,10 @@ def run_script(
 
 
 def copy_runtime_files(repo_dir: Path) -> None:
-    shutil.copy2(REPO_ROOT / "ai-config.ps1", repo_dir / "ai-config.ps1")
+    if USE_PYTHON:
+        shutil.copytree(REPO_ROOT / "ai_config", repo_dir / "ai_config")
+    else:
+        shutil.copy2(REPO_ROOT / "legacy/ai-config.ps1", repo_dir / "ai-config.ps1")
 
 
 def snapshot_tree(root: Path) -> dict[str, tuple[str, bytes | str | None]]:
@@ -1237,15 +1264,14 @@ def test_apply_backs_up_only_managed_paths_and_keeps_latest_five(
     assert len(snapshots) == 1
     snapshot = snapshots[0]
     assert (snapshot / "claude/CLAUDE.md").read_text() == "old claude\n"
-    assert (snapshot / "claude/rules/old.md").read_text() == "old rule\n"
+    assert not (snapshot / "claude/rules").exists()
+    assert (home_dir / ".claude/rules/old.md").read_text() == "old rule\n"
     assert (snapshot / "codex/AGENTS.md").read_text() == "old agents\n"
     assert (snapshot / "codex/config.toml").read_text() == 'model = "old"\n'
     assert (
         snapshot / "agy/settings.json"
     ).read_text() == '{"theme":"old"}\n'
-    assert (
-        snapshot / "agy/plugins/installed.json"
-    ).read_text() == "old plugin\n"
+    assert not (snapshot / "agy/plugins").exists()
     assert not (snapshot / "claude/runtime-cache").exists()
     assert not (snapshot / "codex/sessions").exists()
     assert not (snapshot / "agy/browser").exists()
@@ -1307,6 +1333,7 @@ def test_managed_skills_use_allowlist_and_prune_only_manifest_orphans(
     assert not (skills / "current/ignored.txt").exists()
     assert not (skills / "current/assets").exists()
     write(skills / "current/stale-managed.txt", "stale\n")
+    write(skills / "current/.credentials.json", "live secret\n")
 
     shutil.rmtree(repo_dir / "codex/skills/removed-later")
     second = run_script(repo_dir, home_dir, "apply", "codex")
@@ -1315,6 +1342,7 @@ def test_managed_skills_use_allowlist_and_prune_only_manifest_orphans(
     assert (skills / ".ai-config-managed").read_text().splitlines() == ["current"]
     assert not (skills / "removed-later").exists()
     assert not (skills / "current/stale-managed.txt").exists()
+    assert (skills / "current/.credentials.json").read_text() == "live secret\n"
     assert (skills / "hand-installed/SKILL.md").read_text() == "hand installed\n"
 
 
@@ -1823,6 +1851,8 @@ def test_claude_skills_and_plugins_project_to_codex_and_agy(tmp_path: Path) -> N
         json.dumps({"installPath": str(source_plugins)}, ensure_ascii=False) + "\n",
     )
     write(repo_dir / "claude/plugins/demo/plugin.txt", "plugin data\n")
+    write(repo_dir / "claude/plugins/demo/.credentials.json", "source secret\n")
+    write(target_plugins / "demo/.credentials.json", "live secret\n")
 
     result = run_script(repo_dir, home_dir, "apply", "all")
 
@@ -1835,6 +1865,9 @@ def test_claude_skills_and_plugins_project_to_codex_and_agy(tmp_path: Path) -> N
         home_dir / ".gemini/antigravity-cli/skills/live-skill/SKILL.md"
     ).is_file()
     assert (target_plugins / "demo/plugin.txt").read_text() == "plugin data\n"
+    assert (
+        target_plugins / "demo/.credentials.json"
+    ).read_text() == "live secret\n"
     installed = json.loads(
         (target_plugins / "installed_plugins.json").read_text(encoding="utf-8")
     )
@@ -2061,6 +2094,33 @@ def test_backup_prune_preserves_foreign_and_incomplete_directories(
 
 
 @requires_pwsh
+def test_apply_refuses_reparse_point_backup_root(tmp_path: Path) -> None:
+    repo_dir = tmp_path / "repo"
+    home_dir = tmp_path / "home"
+    external = tmp_path / "external-backups"
+    repo_dir.mkdir()
+    home_dir.mkdir()
+    external.mkdir()
+    copy_runtime_files(repo_dir)
+    write(repo_dir / "claude/CLAUDE.md", "new instructions\n")
+    write(home_dir / ".claude/CLAUDE.md", "old instructions\n")
+    backup_root = home_dir / ".ai-config-backup"
+    if os.name == "nt":
+        import _winapi
+
+        _winapi.CreateJunction(str(external), str(backup_root))
+    else:
+        backup_root.symlink_to(external, target_is_directory=True)
+
+    result = run_script(repo_dir, home_dir, "apply", "claude")
+
+    assert result.returncode != 0
+    assert "reparse point backup root" in (result.stderr + result.stdout).lower()
+    assert not list(external.iterdir())
+    assert (home_dir / ".claude/CLAUDE.md").read_text() == "old instructions\n"
+
+
+@requires_pwsh
 def test_failed_backup_cleans_only_its_own_temporary_directory(
     tmp_path: Path,
 ) -> None:
@@ -2074,18 +2134,27 @@ def test_failed_backup_cleans_only_its_own_temporary_directory(
     write(live_file, "old instructions\n")
     backup_root = home_dir / ".ai-config-backup"
     write(backup_root / ".tmp-foreign/keep.txt", "foreign temp\n")
-    script_path = repo_dir / "ai-config.ps1"
+    script_path = (
+        repo_dir / "ai_config/backup.py" if USE_PYTHON else repo_dir / "ai-config.ps1"
+    )
     script = script_path.read_text(encoding="utf-8")
-    anchor = (
-        "    New-Directory $temporarySnapshot\n"
-        "    try {\n"
-        "        foreach ($tool in $Tools) {\n"
-    )
+    if USE_PYTHON:
+        anchor = "    temporary.mkdir()\n    try:\n"
+        injected = anchor.replace(
+            "    try:\n",
+            "    try:\n        raise RuntimeError('Injected backup failure')\n",
+        )
+    else:
+        anchor = (
+            "    New-Directory $temporarySnapshot\n"
+            "    try {\n"
+            "        foreach ($tool in $Tools) {\n"
+        )
+        injected = anchor.replace(
+            "    try {\n",
+            "    try {\n        throw 'Injected backup failure'\n",
+        )
     assert script.count(anchor) == 1
-    injected = anchor.replace(
-        "    try {\n",
-        "    try {\n        throw 'Injected backup failure'\n",
-    )
     script_path.write_text(script.replace(anchor, injected, 1), encoding="utf-8")
 
     result = run_script(repo_dir, home_dir, "apply", "claude")
@@ -2113,22 +2182,28 @@ def test_parallel_apply_uses_distinct_completed_snapshots(tmp_path: Path) -> Non
         write(repo_dir / f"claude/rules/rule-{index}.md", f"rule {index}\n")
         write(home_dir / f".claude/rules/old-{index}.md", f"old {index}\n")
 
-    assert PWSH is not None
-    command = [
-        PWSH,
-        "-NoLogo",
-        "-NoProfile",
-        "-NonInteractive",
-        "-File",
-        str(repo_dir / "ai-config.ps1"),
-        "apply",
-        "claude",
-    ]
+    if USE_PYTHON:
+        command = [sys.executable, "-m", "ai_config", "apply", "claude"]
+    else:
+        assert PWSH is not None
+        command = [
+            PWSH,
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            str(repo_dir / "ai-config.ps1"),
+            "apply",
+            "claude",
+        ]
+    env = make_env(home_dir)
+    if USE_PYTHON:
+        env["AI_CONFIG_PLATFORM"] = "windows"
     processes = [
         subprocess.Popen(
             command,
             cwd=repo_dir,
-            env=make_env(home_dir),
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -2153,3 +2228,49 @@ def test_parallel_apply_uses_distinct_completed_snapshots(tmp_path: Path) -> Non
         assert (home_dir / f".claude/rules/rule-{index}.md").read_text() == (
             f"rule {index}\n"
         )
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Native Windows Junction contract")
+def test_python_creates_native_windows_junctions(tmp_path: Path) -> None:
+    if not USE_PYTHON:
+        pytest.skip("Python implementation contract")
+    repo_dir = tmp_path / "repo"
+    home_dir = tmp_path / "home"
+    repo_dir.mkdir()
+    home_dir.mkdir()
+    copy_runtime_files(repo_dir)
+    write(repo_dir / "claude/CLAUDE.md", "instructions\n")
+    write(repo_dir / "codex/rules/rule.md", "rule\n")
+    write(repo_dir / "agy/settings.json", '{"theme":"test"}\n')
+    write(
+        repo_dir / "claude/shared/both/demo/SKILL.md",
+        "---\nname: demo\ndescription: Demo\n---\n",
+    )
+    (home_dir / ".codex-set").mkdir()
+
+    result = run_script(
+        repo_dir,
+        home_dir,
+        "apply",
+        "all",
+        force_copy_fallback=False,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    codex_rules = home_dir / ".codex-set/rules"
+    agy_skills = home_dir / ".gemini/antigravity-cli/skills"
+    reparse_flag = stat.FILE_ATTRIBUTE_REPARSE_POINT
+    assert codex_rules.lstat().st_file_attributes & reparse_flag
+    assert agy_skills.lstat().st_file_attributes & reparse_flag
+    codex_state = json.loads(
+        (home_dir / ".codex-set/.ai-config-shared-state.json").read_text()
+    )
+    agy_state = json.loads(
+        (
+            home_dir
+            / ".gemini/antigravity-cli/.ai-config-skills-state.json"
+        ).read_text()
+    )
+    codex_kinds = {entry["path"]: entry["kind"] for entry in codex_state["entries"]}
+    assert codex_kinds["rules"] == "junction"
+    assert agy_state["entries"][0]["kind"] == "junction"
