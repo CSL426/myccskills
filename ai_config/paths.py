@@ -21,13 +21,8 @@ CLAUDE_HOME = HOME / ".claude"
 CODEX_HOME = HOME / ".codex"
 AGY_HOME = HOME / ".gemini" / "antigravity-cli"
 
-# Codex runtime homes keep separate auth/session DB state, but should share
-# managed config files from ~/.codex.
-CODEX_SHARED_HOMES = [HOME / ".codex-csl", HOME / ".codex-set"]
-CODEX_SHARED_PATHS = ["AGENTS.md", "config.toml", "rules", "skills", "plugins", "prompts"]
-
 # agy: AGY_HOME/skills is a symlink into this canonical store so multiple agy
-# surfaces share one skills dir (mirrors the codex multi-home pattern).
+# surfaces share one skills dir.
 AGY_CANONICAL_SKILLS = HOME / ".gemini" / "antigravity" / "skills"
 
 # All managed tools (order matters for init/apply/status)

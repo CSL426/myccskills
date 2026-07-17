@@ -126,5 +126,4 @@ apply_codex_internal() {
 apply_codex() {
     log_header "Apply Codex"
     run_apply_tool "codex"
-    ensure_codex_shared_links
 }

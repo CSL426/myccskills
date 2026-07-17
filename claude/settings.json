@@ -1,6 +1,5 @@
 {
   "env": {
-    "CODEX_HOME": "/home/human/.codex-set",
     "ECC_GATEGUARD": "off",
     "ECC_CONTEXT_MONITOR_COST_WARNINGS": "false"
   },

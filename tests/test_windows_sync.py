@@ -1347,232 +1347,6 @@ def test_managed_skills_use_allowlist_and_prune_only_manifest_orphans(
 
 
 @requires_pwsh
-def test_codex_alternate_homes_use_marker_safe_copy_fallback(tmp_path: Path) -> None:
-    repo_dir = tmp_path / "repo"
-    home_dir = tmp_path / "home"
-    repo_dir.mkdir()
-    home_dir.mkdir()
-    copy_runtime_files(repo_dir)
-
-    write(repo_dir / "claude/CLAUDE.md", "instructions one\n")
-    write(repo_dir / "codex/config.toml", 'model = "one"\n')
-    write(repo_dir / "codex/rules/rule.md", "rule one\n")
-    write(
-        repo_dir / "codex/skills/demo/SKILL.md",
-        "---\nname: demo\ndescription: Demo\n---\nSkill one.\n",
-    )
-    write(home_dir / ".codex/plugins/plugin.txt", "plugin one\n")
-    write(home_dir / ".codex/prompts/prompt.md", "prompt one\n")
-    (home_dir / ".codex-csl").mkdir()
-    (home_dir / ".codex-set").mkdir()
-    write(home_dir / ".codex-csl/config.toml", "unmanaged conflict\n")
-    write(home_dir / ".codex-csl/auth.json", "csl auth\n")
-    write(home_dir / ".codex-set/session.json", "set session\n")
-
-    first = run_script(repo_dir, home_dir, "apply", "codex")
-
-    assert first.returncode == 0, first.stderr + first.stdout
-    assert "unmanaged alternate Codex path" in first.stderr + first.stdout
-    shared_set = home_dir / ".codex-set"
-    for relative_path in (
-        "AGENTS.md",
-        "config.toml",
-        "rules/rule.md",
-        "skills/demo/SKILL.md",
-        "plugins/plugin.txt",
-        "prompts/prompt.md",
-    ):
-        assert (shared_set / relative_path).exists()
-    marker = (shared_set / ".ai-config-shared-paths").read_text().splitlines()
-    assert marker == ["AGENTS.md", "config.toml", "rules", "skills", "plugins", "prompts"]
-    assert (home_dir / ".codex-csl/config.toml").read_text() == "unmanaged conflict\n"
-    csl_marker = (
-        home_dir / ".codex-csl/.ai-config-shared-paths"
-    ).read_text().splitlines()
-    assert "config.toml" not in csl_marker
-
-    write(repo_dir / "claude/CLAUDE.md", "instructions two\n")
-    write(repo_dir / "codex/config.toml", 'model = "two"\n')
-    write(repo_dir / "codex/rules/rule.md", "rule two\n")
-    write(home_dir / ".codex/plugins/plugin.txt", "plugin two\n")
-    write(home_dir / ".codex/prompts/prompt.md", "prompt two\n")
-    second = run_script(repo_dir, home_dir, "apply", "codex")
-
-    assert second.returncode == 0, second.stderr + second.stdout
-    assert (shared_set / "AGENTS.md").read_text() == "instructions two\n"
-    assert 'model = "two"' in (shared_set / "config.toml").read_text()
-    assert (shared_set / "rules/rule.md").read_text() == "rule two\n"
-    assert (shared_set / "plugins/plugin.txt").read_text() == "plugin two\n"
-    assert (shared_set / "prompts/prompt.md").read_text() == "prompt two\n"
-    assert (home_dir / ".codex-csl/config.toml").read_text() == "unmanaged conflict\n"
-    assert (home_dir / ".codex-csl/auth.json").read_text() == "csl auth\n"
-    assert (home_dir / ".codex-set/session.json").read_text() == "set session\n"
-
-
-@requires_pwsh
-def test_codex_fallback_preserves_tampered_managed_paths_and_rejects_fake_marker(
-    tmp_path: Path,
-) -> None:
-    repo_dir = tmp_path / "repo"
-    home_dir = tmp_path / "home"
-    repo_dir.mkdir()
-    home_dir.mkdir()
-    copy_runtime_files(repo_dir)
-    write(repo_dir / "claude/CLAUDE.md", "instructions one\n")
-    write(repo_dir / "codex/config.toml", 'model = "one"\n')
-    write(repo_dir / "codex/rules/rule.md", "rule one\n")
-    (home_dir / ".codex-set").mkdir()
-    (home_dir / ".codex-csl").mkdir()
-    write(home_dir / ".codex-csl/AGENTS.md", "unmanaged agents\n")
-    write(home_dir / ".codex-csl/.ai-config-shared-paths", "AGENTS.md\n")
-
-    first = run_script(repo_dir, home_dir, "apply", "codex")
-
-    assert first.returncode == 0, first.stderr + first.stdout
-    shared = home_dir / ".codex-set"
-    assert (shared / ".ai-config-shared-state.json").is_file()
-    (shared / ".ai-config-shared-paths").unlink()
-    write(shared / "AGENTS.md", "manual agents\n")
-    write(shared / "rules/rule.md", "manual rule\n")
-    write(repo_dir / "claude/CLAUDE.md", "instructions two\n")
-    write(repo_dir / "codex/rules/rule.md", "rule two\n")
-
-    second = run_script(repo_dir, home_dir, "apply", "codex")
-
-    assert second.returncode == 0, second.stderr + second.stdout
-    assert "ownership/content changed" in second.stderr + second.stdout
-    assert (shared / "AGENTS.md").read_text() == "manual agents\n"
-    assert (shared / "rules/rule.md").read_text() == "manual rule\n"
-    assert (home_dir / ".codex-csl/AGENTS.md").read_text() == "unmanaged agents\n"
-
-
-@requires_pwsh
-def test_codex_fallback_rejects_reparse_target_mismatch(tmp_path: Path) -> None:
-    repo_dir = tmp_path / "repo"
-    home_dir = tmp_path / "home"
-    external = tmp_path / "external-agents.md"
-    repo_dir.mkdir()
-    home_dir.mkdir()
-    copy_runtime_files(repo_dir)
-    write(repo_dir / "claude/CLAUDE.md", "instructions\n")
-    (home_dir / ".codex-set").mkdir()
-
-    first = run_script(repo_dir, home_dir, "apply", "codex")
-    assert first.returncode == 0, first.stderr + first.stdout
-    write(external, "external\n")
-    agents = home_dir / ".codex-set/AGENTS.md"
-    agents.unlink()
-    agents.symlink_to(external)
-    before_home = snapshot_tree(home_dir)
-
-    second = run_script(repo_dir, home_dir, "apply", "codex")
-
-    assert second.returncode != 0
-    assert "reparse point" in (second.stderr + second.stdout).lower()
-    assert external.read_text() == "external\n"
-    assert snapshot_tree(home_dir) == before_home
-
-
-@requires_pwsh
-def test_codex_fallback_rejects_reparse_alternate_root_before_external_mutation(
-    tmp_path: Path,
-) -> None:
-    repo_dir = tmp_path / "repo"
-    home_dir = tmp_path / "home"
-    external = tmp_path / "external-alternate"
-    repo_dir.mkdir()
-    home_dir.mkdir()
-    external.mkdir()
-    copy_runtime_files(repo_dir)
-    write(repo_dir / "claude/CLAUDE.md", "instructions\n")
-    write(repo_dir / "codex/rules/rule.md", "managed rule\n")
-    write(external / "keep.txt", "external\n")
-    before = {
-        path.relative_to(external): path.read_bytes()
-        for path in external.rglob("*")
-        if path.is_file()
-    }
-    (home_dir / ".codex-set").symlink_to(external, target_is_directory=True)
-    before_home = snapshot_tree(home_dir)
-
-    result = run_script(repo_dir, home_dir, "apply", "codex")
-
-    assert result.returncode != 0
-    assert "reparse point alternate Codex root" in result.stderr + result.stdout
-    after = {
-        path.relative_to(external): path.read_bytes()
-        for path in external.rglob("*")
-        if path.is_file()
-    }
-    assert after == before
-    assert not (external / ".ai-config-shared-state.json").exists()
-    assert not (external / ".ai-config-shared-paths").exists()
-    assert not (external / "AGENTS.md").exists()
-    assert not (external / "rules").exists()
-    assert snapshot_tree(home_dir) == before_home
-
-
-@requires_pwsh
-def test_codex_fallback_rejects_reparse_marker_before_external_mutation(
-    tmp_path: Path,
-) -> None:
-    repo_dir = tmp_path / "repo"
-    home_dir = tmp_path / "home"
-    external = tmp_path / "external-marker.txt"
-    repo_dir.mkdir()
-    home_dir.mkdir()
-    copy_runtime_files(repo_dir)
-    write(repo_dir / "claude/CLAUDE.md", "instructions\n")
-    (home_dir / ".codex-set").mkdir()
-
-    first = run_script(repo_dir, home_dir, "apply", "codex")
-    assert first.returncode == 0, first.stderr + first.stdout
-    marker = home_dir / ".codex-set/.ai-config-shared-paths"
-    marker.unlink()
-    write(external, "external marker\n")
-    before = external.read_bytes()
-    marker.symlink_to(external)
-    write(home_dir / ".claude/CLAUDE.md", "instructions\n")
-    before_home = snapshot_tree(home_dir)
-
-    second = run_script(repo_dir, home_dir, "project", "codex")
-
-    assert second.returncode != 0
-    assert "reparse point" in (second.stderr + second.stdout).lower()
-    assert external.read_bytes() == before
-    assert snapshot_tree(home_dir) == before_home
-
-
-@requires_pwsh
-def test_codex_fallback_preflights_reparse_state_before_any_mutation(
-    tmp_path: Path,
-) -> None:
-    repo_dir = tmp_path / "repo"
-    home_dir = tmp_path / "home"
-    external = tmp_path / "external-state.json"
-    repo_dir.mkdir()
-    home_dir.mkdir()
-    copy_runtime_files(repo_dir)
-    write(repo_dir / "claude/CLAUDE.md", "instructions\n")
-    (home_dir / ".codex-set").mkdir()
-    first = run_script(repo_dir, home_dir, "apply", "codex")
-    assert first.returncode == 0, first.stderr + first.stdout
-    state = home_dir / ".codex-set/.ai-config-shared-state.json"
-    state.unlink()
-    write(external, '{"sensitive":"external"}\n')
-    state.symlink_to(external)
-    before_home = snapshot_tree(home_dir)
-    before_external = external.read_bytes()
-
-    second = run_script(repo_dir, home_dir, "apply", "codex")
-
-    assert second.returncode != 0
-    assert "reparse point" in (second.stderr + second.stdout).lower()
-    assert snapshot_tree(home_dir) == before_home
-    assert external.read_bytes() == before_external
-
-
-@requires_pwsh
 def test_agy_skills_use_canonical_store_and_update_safe_fallback(
     tmp_path: Path,
 ) -> None:
@@ -2240,14 +2014,11 @@ def test_python_creates_native_windows_junctions(tmp_path: Path) -> None:
     home_dir.mkdir()
     copy_runtime_files(repo_dir)
     write(repo_dir / "claude/CLAUDE.md", "instructions\n")
-    write(repo_dir / "codex/rules/rule.md", "rule\n")
     write(repo_dir / "agy/settings.json", '{"theme":"test"}\n')
     write(
         repo_dir / "claude/shared/both/demo/SKILL.md",
         "---\nname: demo\ndescription: Demo\n---\n",
     )
-    (home_dir / ".codex-set").mkdir()
-
     result = run_script(
         repo_dir,
         home_dir,
@@ -2257,20 +2028,13 @@ def test_python_creates_native_windows_junctions(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr + result.stdout
-    codex_rules = home_dir / ".codex-set/rules"
     agy_skills = home_dir / ".gemini/antigravity-cli/skills"
     reparse_flag = stat.FILE_ATTRIBUTE_REPARSE_POINT
-    assert codex_rules.lstat().st_file_attributes & reparse_flag
     assert agy_skills.lstat().st_file_attributes & reparse_flag
-    codex_state = json.loads(
-        (home_dir / ".codex-set/.ai-config-shared-state.json").read_text()
-    )
     agy_state = json.loads(
         (
             home_dir
             / ".gemini/antigravity-cli/.ai-config-skills-state.json"
         ).read_text()
     )
-    codex_kinds = {entry["path"]: entry["kind"] for entry in codex_state["entries"]}
-    assert codex_kinds["rules"] == "junction"
     assert agy_state["entries"][0]["kind"] == "junction"

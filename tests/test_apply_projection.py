@@ -111,30 +111,3 @@ def test_apply_all_projects_claude_shared_content_without_sync(tmp_path: Path) -
     assert 'model = "gpt-5"' in codex_config
     assert '[projects."/tmp/demo"]' in codex_config
     assert 'trust_level = "trusted"' in codex_config
-
-
-def test_apply_codex_links_alternate_runtime_homes_to_canonical_config(tmp_path: Path) -> None:
-    repo_dir = tmp_path / "repo"
-    home_dir = tmp_path / "home"
-    repo_dir.mkdir()
-    home_dir.mkdir()
-    copy_runtime_files(repo_dir)
-
-    write(repo_dir / "claude/CLAUDE.md", "shared instructions\n")
-    write(repo_dir / "codex/config.toml", 'model = "gpt-5"\n')
-    write(repo_dir / "codex/rules/common/shared.md", "shared rule\n")
-    write(
-        repo_dir / "codex/skills/private-skill/SKILL.md",
-        "---\nname: private-skill\n---\nPrivate codex skill\n",
-    )
-    (home_dir / ".codex-csl").mkdir()
-    (home_dir / ".codex-set").mkdir()
-
-    result = run_ai_config(repo_dir, home_dir, "apply", "codex")
-
-    assert result.returncode == 0, result.stderr + result.stdout
-    for runtime_home in (home_dir / ".codex-csl", home_dir / ".codex-set"):
-        for rel_path in ("AGENTS.md", "config.toml", "rules", "skills"):
-            linked_path = runtime_home / rel_path
-            assert linked_path.is_symlink()
-            assert os.readlink(linked_path) == str(home_dir / ".codex" / rel_path)

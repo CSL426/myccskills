@@ -61,7 +61,6 @@ cd ~/ai-config && ./ai-config.sh <command> [tool]
 - **init vs apply:** changed config on THIS machine and want to save it → `init` (then commit). Want to pull someone else's committed config onto this machine → `apply`. When unsure, run `status` first — it's read-only.
 - **mtime is a hint, not authority:** for differing content, `status` shows repo/live modification times and labels the newer side. Use it to spot likely local edits, but remember Git checkout and external copy operations can change mtime; still confirm whether `init` or `apply` matches the user's intent.
 - **Always `status` before `apply`** to see what will change. `apply` auto-backs up to `~/.ai-config-backup/<timestamp>/` but previewing is cheaper than restoring.
-- **Codex multi-home:** `~/.codex` is the shared source; `~/.codex-csl`, `~/.codex-set` only hold their own auth/session/cache and symlink AGENTS.md/config.toml/rules/skills back to `~/.codex`. `apply codex` repairs those symlinks but never clobbers a real file or a different symlink.
 
 ## Safety (built into the script)
 

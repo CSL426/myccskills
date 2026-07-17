@@ -32,12 +32,8 @@ CLAUDE_HOME="$HOME/.claude"
 CODEX_HOME="$HOME/.codex"
 AGY_HOME="$HOME/.gemini/antigravity-cli"
 
-# Codex runtime homes keep separate auth/session DB state, but should share
-# managed config files from ~/.codex.
-CODEX_SHARED_HOMES=("$HOME/.codex-csl" "$HOME/.codex-set")
-CODEX_SHARED_PATHS=(AGENTS.md config.toml rules skills plugins prompts)
 # agy: AGY_HOME/skills is a symlink into this canonical store so multiple agy
-# surfaces share one skills dir (mirrors the codex multi-home pattern).
+# surfaces share one skills dir.
 AGY_CANONICAL_SKILLS="$HOME/.gemini/antigravity/skills"
 
 # All managed tools (order matters for init/apply/status)
@@ -381,40 +377,9 @@ tool_home() {
     esac
 }
 
-ensure_codex_shared_links() {
-    local shared_home rel_path src dst
-
-    for shared_home in "${CODEX_SHARED_HOMES[@]}"; do
-        [[ "$shared_home" == "$CODEX_HOME" ]] && continue
-        [[ -d "$shared_home" ]] || continue
-
-        for rel_path in "${CODEX_SHARED_PATHS[@]}"; do
-            src="$CODEX_HOME/$rel_path"
-            dst="$shared_home/$rel_path"
-            [[ -e "$src" || -L "$src" ]] || continue
-
-            if [[ -L "$dst" ]]; then
-                if [[ "$(readlink "$dst")" == "$src" ]]; then
-                    continue
-                fi
-                log_warn "Not replacing existing symlink: $dst -> $(readlink "$dst")"
-                continue
-            fi
-
-            if [[ -e "$dst" ]]; then
-                log_warn "Not replacing existing Codex path: $dst"
-                continue
-            fi
-
-            ln -s "$src" "$dst"
-            log_success "linked ${shared_home/#$HOME/~}/$rel_path -> ~/.codex/$rel_path"
-        done
-    done
-}
-
 # Ensure AGY_HOME/skills is a symlink to the canonical skills store, so the
-# skills dir survives Antigravity CLI reinstalls and stays shared. Mirrors the
-# protection logic in ensure_codex_shared_links (never clobber a real dir).
+# skills dir survives Antigravity CLI reinstalls and stays shared without
+# clobbering a real directory.
 ensure_agy_shared_links() {
     local link="$AGY_HOME/skills"
     local target="$AGY_CANONICAL_SKILLS"

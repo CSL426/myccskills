@@ -27,7 +27,6 @@ Phase 0 產出。逐項記錄兩實作的已知差異,以及 Python 版該採用
 
 | 項目 | sh(Linux) | ps1(Windows) |
 |------|-----------|---------------|
-| codex 多 home 共用 | symlink(`ensure_codex_shared_links`);既有 symlink 指向他處 → 保留 + 警告 | Junction 優先 → copy fallback + ownership fingerprint(`Sync-CodexAlternateHomes`) |
 | agy canonical skills | `AGY_HOME/skills` symlink → `~/.gemini/antigravity/skills` | `Sync-AgySkillsSurface`(Junction/fallback 同上) |
 | 覆蓋保護 | 只看「是否為指向預期目標的 symlink」 | ownership state 檔 + 內容 fingerprint,非本工具擁有或 fingerprint 變更 → 拒絕覆蓋 |
 

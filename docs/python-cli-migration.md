@@ -40,7 +40,7 @@ ai-config/
 ├── ai_config/
 │   ├── __main__.py       # argparse 進入點與指令分派
 │   ├── console.py        # 顏色/log_* 輸出(對齊現版格式)
-│   ├── paths.py          # 工具 home、CODEX_SHARED_HOMES、排除清單等常數
+│   ├── paths.py          # 工具 home、排除清單等常數
 │   ├── frontmatter.py    # SKILL.md 正規化(取代 sanitize_skill_frontmatter)
 │   ├── staging.py        # stage projection(claude/codex/agy 共用骨架)
 │   ├── skills.py         # sync_skills、reconcile_managed_skills、shared mirror

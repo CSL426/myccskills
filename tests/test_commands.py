@@ -101,37 +101,6 @@ def test_apply_backs_up_existing_files_and_prunes_to_five(tmp_path: Path) -> Non
     assert live == "repo instructions\n"
 
 
-# ─── codex shared home links ──────────────────────────────────
-
-
-def test_apply_codex_links_shared_homes(tmp_path: Path) -> None:
-    repo_dir, home_dir = make_full_repo(tmp_path)
-    (home_dir / ".codex-csl").mkdir()
-
-    result = run_ai_config(repo_dir, home_dir, "apply", "codex")
-
-    assert result.returncode == 0, result.stderr + result.stdout
-    link = home_dir / ".codex-csl/config.toml"
-    assert link.is_symlink()
-    assert link.resolve() == (home_dir / ".codex/config.toml").resolve()
-
-
-def test_apply_codex_preserves_foreign_symlink_in_shared_home(tmp_path: Path) -> None:
-    repo_dir, home_dir = make_full_repo(tmp_path)
-    (home_dir / ".codex-csl").mkdir()
-    foreign_target = tmp_path / "elsewhere.toml"
-    write(foreign_target, "foreign\n")
-    (home_dir / ".codex-csl/config.toml").symlink_to(foreign_target)
-
-    result = run_ai_config(repo_dir, home_dir, "apply", "codex")
-
-    assert result.returncode == 0, result.stderr + result.stdout
-    link = home_dir / ".codex-csl/config.toml"
-    assert link.is_symlink()
-    assert link.resolve() == foreign_target.resolve()
-    assert "Not replacing existing symlink" in result.stdout
-
-
 # ─── idempotency ──────────────────────────────────────────────
 
 

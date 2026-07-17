@@ -10,7 +10,6 @@ from .paths import (
     AGY_HOME,
     CLAUDE_HOME,
     CODEX_HOME,
-    CODEX_SHARED_HOMES,
     WINDOWS_MODE,
 )
 
@@ -131,19 +130,18 @@ def assert_tool_destinations_safe(
 ) -> None:
     for tool in tools:
         if tool == "claude":
-            _assert_tool_root(CLAUDE_HOME)
-            for name in ("CLAUDE.md", "mcp.json", "settings.json", "statusline.sh"):
-                assert_safe_write_target(CLAUDE_HOME / name)
-            for name in ("rules", "agents", "commands"):
-                assert_no_symlinks(CLAUDE_HOME / name)
+            assert_managed_paths_safe(
+                CLAUDE_HOME,
+                ("CLAUDE.md", "mcp.json", "settings.json", "statusline.sh"),
+                ("rules", "agents", "commands"),
+            )
         elif tool == "codex":
-            _assert_tool_root(CODEX_HOME)
+            assert_managed_paths_safe(
+                CODEX_HOME,
+                ("config.toml",),
+                ("rules", "skills"),
+            )
             codex_agents_shared_target()
-            assert_safe_write_target(CODEX_HOME / "config.toml")
-            for name in ("rules", "skills"):
-                assert_no_symlinks(CODEX_HOME / name)
-            for alternate in CODEX_SHARED_HOMES:
-                assert_root_not_reparse(alternate, "alternate Codex root")
         elif tool == "agy":
             assert_root_not_reparse(AGY_HOME, "Antigravity CLI root")
             for name in ("mcp_config.json", "settings.json"):

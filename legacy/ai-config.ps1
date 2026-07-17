@@ -589,7 +589,6 @@ function Assert-ToolDestinationsSafe {
                 foreach ($name in @('rules', 'skills')) {
                     Assert-NoReparsePoints (Join-Path $liveDirectory $name)
                 }
-                Assert-CodexFallbackDestinationsSafe $HomeDirectory
             }
             'agy' {
                 foreach ($name in @('mcp_config.json', 'settings.json')) {
@@ -1018,31 +1017,6 @@ function Assert-RecordedFallbackDestinationsSafe {
     }
 }
 
-function Assert-CodexFallbackDestinationsSafe {
-    param([string]$HomeDirectory)
-
-    $canonical = Join-Path $HomeDirectory '.codex'
-    foreach ($alternateName in @('.codex-csl', '.codex-set')) {
-        $alternate = Join-Path $HomeDirectory $alternateName
-        $alternateItem = Get-PathItem $alternate
-        if ($null -eq $alternateItem) {
-            continue
-        }
-        if (Test-IsReparsePoint $alternate) {
-            throw "Refusing reparse point alternate Codex root: $alternate"
-        }
-        if (-not $alternateItem.PSIsContainer) {
-            continue
-        }
-        $statePath = Join-Path $alternate '.ai-config-shared-state.json'
-        $marker = Join-Path $alternate '.ai-config-shared-paths'
-        Assert-SafeWriteTarget $statePath
-        Assert-SafeWriteTarget $marker
-        $state = Read-OwnershipState $statePath
-        Assert-RecordedFallbackDestinationsSafe $state $canonical $alternate
-    }
-}
-
 function Assert-AgyFallbackDestinationSafe {
     param([string]$HomeDirectory)
 
@@ -1192,133 +1166,6 @@ function Remove-MarkerManagedPath {
         return
     }
     Remove-Item -LiteralPath $Path -Recurse -Force
-}
-
-function Sync-CodexAlternateHomes {
-    param([string]$HomeDirectory)
-
-    $canonical = Join-Path $HomeDirectory '.codex'
-    $managedPaths = @(
-        'AGENTS.md', 'config.toml', 'rules', 'skills', 'plugins', 'prompts'
-    )
-    foreach ($alternateName in @('.codex-csl', '.codex-set')) {
-        $alternate = Join-Path $HomeDirectory $alternateName
-        if (Test-IsReparsePoint $alternate) {
-            throw "Refusing reparse point alternate Codex root: $alternate"
-        }
-        if (-not (Test-Path -LiteralPath $alternate -PathType Container)) {
-            continue
-        }
-
-        $marker = Join-Path $alternate '.ai-config-shared-paths'
-        $statePath = Join-Path $alternate '.ai-config-shared-state.json'
-        $state = Read-OwnershipState $statePath
-        $newEntries = New-Object Collections.Generic.List[object]
-
-        foreach ($relativePath in $managedPaths) {
-            $source = Join-Path $canonical $relativePath
-            $destination = Join-Path $alternate $relativePath
-            $sourceItem = Get-PathItem $source
-            $destinationItem = Get-PathItem $destination
-            if ($state.ContainsKey($relativePath)) {
-                $record = $state[$relativePath]
-            }
-            else {
-                $record = $null
-            }
-
-            if ($null -ne $destinationItem -and $null -eq $record) {
-                Write-Warning "Not replacing unmanaged alternate Codex path: $destination"
-                continue
-            }
-            if ($null -eq $destinationItem -and $null -ne $record) {
-                Write-Warning "Fallback ownership/content changed: $destination"
-                $newEntries.Add($record)
-                continue
-            }
-            if ($null -ne $destinationItem) {
-                if (-not (Test-OwnershipRecord $record $source $destination)) {
-                    if ($null -ne $record) {
-                        $newEntries.Add($record)
-                    }
-                    continue
-                }
-            }
-
-            if ($null -eq $sourceItem) {
-                if ($null -ne $destinationItem) {
-                    if (Test-IsReparsePoint $destination) {
-                        Assert-ReparseTarget $destination $source
-                        Remove-Item -LiteralPath $destination -Force
-                    }
-                    else {
-                        Remove-MarkerManagedPath $destination
-                    }
-                }
-                continue
-            }
-
-            if ($null -ne $destinationItem) {
-                if ([string]$record.kind -eq 'junction') {
-                    $newEntries.Add(
-                        (New-OwnershipEntry $relativePath $source $destination 'junction')
-                    )
-                    continue
-                }
-                if ($sourceItem.PSIsContainer -ne $destinationItem.PSIsContainer) {
-                    Remove-MarkerManagedPath $destination
-                    $destinationItem = $null
-                }
-            }
-
-            if (
-                $null -eq $destinationItem -and
-                $sourceItem.PSIsContainer -and
-                $env:OS -eq 'Windows_NT'
-            ) {
-                try {
-                    New-Directory (Split-Path -Parent $destination)
-                    $junctionParameters = @{
-                        ItemType = 'Junction'
-                        Path = $destination
-                        Target = $source
-                        ErrorAction = 'Stop'
-                    }
-                    $null = New-Item @junctionParameters
-                    $newEntries.Add(
-                        (New-OwnershipEntry $relativePath $source $destination 'junction')
-                    )
-                    continue
-                }
-                catch {
-                    Write-Warning "Could not create junction for $destination; using copy fallback"
-                }
-            }
-
-            if ($sourceItem.PSIsContainer) {
-                Sync-DirectoryMirror $source $destination
-                $kind = 'directory'
-            }
-            else {
-                Copy-File $source $destination
-                $kind = 'file'
-            }
-            $newEntries.Add(
-                (New-OwnershipEntry $relativePath $source $destination $kind)
-            )
-        }
-
-        Write-OwnershipState $statePath $newEntries.ToArray()
-        $managedNames = New-Object Collections.Generic.List[string]
-        foreach ($entry in $newEntries) {
-            $managedNames.Add([string]$entry.path)
-        }
-        $content = ''
-        if ($managedNames.Count -gt 0) {
-            $content = ($managedNames -join "`n") + "`n"
-        }
-        Write-Utf8File $marker $content
-    }
 }
 
 function Sync-AgySkillsSurface {
@@ -2065,7 +1912,6 @@ function Apply-CodexProjection {
         }
         Write-Utf8File $destinationConfig "$content`n"
     }
-    Sync-CodexAlternateHomes $HomeDirectory
 }
 
 function Apply-AgyProjection {

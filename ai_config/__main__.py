@@ -1,6 +1,5 @@
 """ai-config — Cross-AI tool configuration manager (Python implementation)."""
 
-import argparse
 import difflib
 import os
 import shutil
@@ -25,7 +24,7 @@ from .console import (
     log_warn,
 )
 from .fsops import count_files, dir_has_files, is_excluded
-from .links import ensure_codex_shared_links, preflight_windows_links
+from .links import preflight_windows_links
 from .locking import apply_lock
 from .mirrors import check_shared_mirrors
 from .paths import (
@@ -70,8 +69,6 @@ def apply_tools(tools: list[str]) -> bool:
                     home_dir = tool_home(tool)
                     home_dir.mkdir(parents=True, exist_ok=True)
                     _TOOLS[tool].apply_internal(stages[tool], home_dir)
-                    if tool == "codex":
-                        ensure_codex_shared_links()
     except Exception as exc:
         log_error(f"Failed to apply config: {exc}")
         if snapshot is not None:
@@ -173,9 +170,12 @@ def _mirror_live_only_files(stage_dir: Path, live_dir: Path) -> list[Path]:
 
 def _planned_removals(tool: str, stage_dir: Path, home_dir: Path) -> list[Path]:
     removals = []
-    exact_mirrors = CLAUDE_MANAGED_DIRS if tool == "claude" else []
-    if tool == "agy":
+    if tool == "claude":
+        exact_mirrors = CLAUDE_MANAGED_DIRS
+    elif tool == "agy":
         exact_mirrors = ["plugins"]
+    else:
+        exact_mirrors = []
     for name in exact_mirrors:
         removals.extend(
             Path(name) / relative
@@ -446,16 +446,14 @@ def main(argv: "list[str] | None" = None) -> int:
         usage()
         return 0
 
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("command")
-    parser.add_argument("tool", nargs="?", default="all")
-    parser.add_argument("extra", nargs="*")
-    parsed = parser.parse_args(["--", *args])
-    if parsed.extra:
-        log_error(f"Unexpected arguments: {' '.join(parsed.extra)}")
+    cmd = args[0]
+    tool = "all"
+    if len(args) > 1:
+        tool = args[1]
+    if len(args) > 2:
+        log_error(f"Unexpected arguments: {' '.join(args[2:])}")
         return 1
-    cmd = parsed.command
-    tool = resolve_tool(parsed.tool)
+    tool = resolve_tool(tool)
 
     if cmd == "init":
         ok = True

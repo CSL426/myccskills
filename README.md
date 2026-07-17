@@ -94,11 +94,9 @@
 .\ai-config.ps1 reset
 ```
 
-## Windows 多 home 與連結策略
+## Windows 連結策略
 
-Codex 的 `~/.codex/` 是 canonical 設定來源；`~/.codex-csl/` 與 `~/.codex-set/` 保留各自的 auth、session 與 cache。Antigravity skill 的 canonical 位置是 `~/.gemini/antigravity/skills/`，CLI surface 位於 `~/.gemini/antigravity-cli/skills/`。
-
-Linux / 相容 Unix 環境的額外 Codex home 清單由 `ai_config/paths.py` 的 `CODEX_SHARED_HOMES` 定義；不存在的目錄會自動略過。
+Antigravity skill 的 canonical 位置是 `~/.gemini/antigravity/skills/`，CLI surface 位於 `~/.gemini/antigravity-cli/skills/`。
 
 Windows 不需要開啟 Developer Mode：
 
@@ -106,7 +104,7 @@ Windows 不需要開啟 Developer Mode：
 - Junction 不可用或目標是檔案時，會使用 copy fallback，並以 ownership state 與內容 fingerprint 判斷後續是否仍可安全更新。
 - 未標記為本工具擁有、fingerprint 已變更或指向不同來源的內容不會被直接覆蓋。
 
-Linux / 相容 Unix 環境則使用 symlink 共用相同設定。
+Linux / 相容 Unix 環境則使用 symlink 共用相同 skills。
 
 ## 安全機制
 

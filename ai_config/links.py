@@ -13,13 +13,9 @@ from .fsops import mirror_dir
 from .paths import (
     AGY_CANONICAL_SKILLS,
     AGY_HOME,
-    CODEX_HOME,
-    CODEX_SHARED_HOMES,
-    CODEX_SHARED_PATHS,
     EXCLUDED_FILES,
     NATIVE_WINDOWS,
     WINDOWS_MODE,
-    tilde,
 )
 from .safety import (
     assert_no_symlinks,
@@ -28,8 +24,6 @@ from .safety import (
     is_reparse_point,
 )
 
-CODEX_MARKER = ".ai-config-shared-paths"
-CODEX_STATE = ".ai-config-shared-state.json"
 AGY_MARKER = ".ai-config-skills-mirror"
 AGY_STATE = ".ai-config-skills-state.json"
 _KINDS = {"file", "directory", "junction"}
@@ -228,21 +222,6 @@ def _assert_recorded_destinations_safe(
             raise RuntimeError(f"Reparse point ownership mismatch: {destination}")
 
 
-def assert_codex_fallback_destinations_safe() -> None:
-    for alternate in CODEX_SHARED_HOMES:
-        if not _path_exists(alternate):
-            continue
-        assert_root_not_reparse(alternate, "alternate Codex root")
-        if not alternate.is_dir():
-            continue
-        state_path = alternate / CODEX_STATE
-        marker = alternate / CODEX_MARKER
-        assert_safe_write_target(state_path)
-        assert_safe_write_target(marker)
-        state = read_ownership_state(state_path)
-        _assert_recorded_destinations_safe(state, CODEX_HOME, alternate)
-
-
 def assert_agy_fallback_destination_safe() -> None:
     if not _path_exists(AGY_HOME):
         return
@@ -262,8 +241,6 @@ def assert_agy_fallback_destination_safe() -> None:
 def preflight_windows_links(tools: list[str]) -> None:
     if not WINDOWS_MODE:
         return
-    if "codex" in tools:
-        assert_codex_fallback_destinations_safe()
     if "agy" in tools:
         assert_agy_fallback_destination_safe()
 
@@ -311,67 +288,6 @@ def _try_create_junction(source: Path, destination: Path) -> bool:
         return False
 
 
-def sync_codex_alternate_homes() -> None:
-    assert_codex_fallback_destinations_safe()
-    for alternate in CODEX_SHARED_HOMES:
-        if not alternate.is_dir() or is_reparse_point(alternate):
-            continue
-        state_path = alternate / CODEX_STATE
-        marker = alternate / CODEX_MARKER
-        state = read_ownership_state(state_path)
-        new_entries: list[dict[str, object]] = []
-
-        for relative in CODEX_SHARED_PATHS:
-            source = CODEX_HOME / relative
-            destination = alternate / relative
-            source_exists = _path_exists(source)
-            destination_exists = _path_exists(destination)
-            record = state.get(relative)
-
-            if destination_exists and record is None:
-                log_warn(f"Not replacing unmanaged alternate Codex path: {destination}")
-                continue
-            if not destination_exists and record is not None:
-                log_warn(f"Fallback ownership/content changed: {destination}")
-                new_entries.append(record)
-                continue
-            if destination_exists and not ownership_record_matches(
-                record, source, destination
-            ):
-                if record is not None:
-                    new_entries.append(record)
-                continue
-
-            if not source_exists:
-                if destination_exists:
-                    _remove_owned_path(destination)
-                continue
-
-            if destination_exists:
-                if record and record["kind"] == "junction":
-                    new_entries.append(
-                        new_ownership_entry(
-                            relative, source, destination, "junction"
-                        )
-                    )
-                    continue
-                if source.is_dir() != destination.is_dir():
-                    _remove_owned_path(destination)
-                    destination_exists = False
-
-            if not destination_exists and _try_create_junction(source, destination):
-                kind = "junction"
-            else:
-                kind = _copy_owned_path(source, destination)
-            new_entries.append(
-                new_ownership_entry(relative, source, destination, kind)
-            )
-
-        write_ownership_state(state_path, new_entries)
-        managed = "".join(f"{entry['path']}\n" for entry in new_entries)
-        _write_atomic(marker, managed)
-
-
 def sync_agy_skills_surface() -> None:
     canonical = AGY_CANONICAL_SKILLS
     if not canonical.is_dir():
@@ -400,48 +316,14 @@ def sync_agy_skills_surface() -> None:
         return
 
     if destination_exists and record and record["kind"] == "junction":
-        entry = new_ownership_entry("skills", canonical, destination, "junction")
+        kind = "junction"
+    elif not destination_exists and _try_create_junction(canonical, destination):
+        kind = "junction"
     else:
-        if not destination_exists and _try_create_junction(canonical, destination):
-            kind = "junction"
-        else:
-            kind = _copy_owned_path(canonical, destination)
-        entry = new_ownership_entry("skills", canonical, destination, kind)
+        kind = _copy_owned_path(canonical, destination)
+    entry = new_ownership_entry("skills", canonical, destination, kind)
     write_ownership_state(state_path, [entry])
     _write_atomic(marker, "skills\n")
-
-
-def _ensure_codex_unix_links() -> None:
-    for shared_home in CODEX_SHARED_HOMES:
-        if shared_home == CODEX_HOME or not shared_home.is_dir():
-            continue
-        for relative in CODEX_SHARED_PATHS:
-            source = CODEX_HOME / relative
-            destination = shared_home / relative
-            if not _path_exists(source):
-                continue
-            if destination.is_symlink():
-                if os.readlink(destination) == str(source):
-                    continue
-                log_warn(
-                    f"Not replacing existing symlink: {destination} -> "
-                    f"{os.readlink(destination)}"
-                )
-                continue
-            if destination.exists():
-                log_warn(f"Not replacing existing Codex path: {destination}")
-                continue
-            destination.symlink_to(source)
-            log_success(
-                f"linked {tilde(shared_home)}/{relative} -> ~/.codex/{relative}"
-            )
-
-
-def ensure_codex_shared_links() -> None:
-    if WINDOWS_MODE:
-        sync_codex_alternate_homes()
-    else:
-        _ensure_codex_unix_links()
 
 
 def _ensure_agy_unix_link() -> None:
