@@ -16,37 +16,48 @@
 
 ## 安裝與快速開始
 
-本工具支援透過 `pipx` 進行本機可開發式（editable）安裝，安裝後即可在系統的任何目錄直接執行 `ai-config` 全域指令。
+### 一鍵安裝(推薦)
 
-### 全域安裝模式 (推薦)
+installer 會自動完成:定位系統 Python(≥3.11)→ 建獨立 venv(不依賴 pyenv/conda)→ editable 安裝 → 建 PATH shim。裝完在任何目錄直接用 `ai-config` 指令。
 
-1. **複製本儲存庫**：
-   ```bash
-   git clone <repo-url> "$HOME/ai-config"
-   cd "$HOME/ai-config"
-   ```
+* **Linux / Unix**:
+  ```bash
+  # 全新機器(repo 是私有的,需先設好 SSH key)
+  git clone git@github.com:CSL426/myccskills.git ~/ai-config && ~/ai-config/install.sh
 
-2. **使用 pipx 安裝**（重點：指定**系統 Python** 建 venv,不要讓指令綁死在 pyenv / conda 等版本管理器的直譯器上——那些環境一換版本,指令就會斷）：
-   * **Linux / macOS**：
-     如果您之前已手動在 `~/.local/bin` 建立了別名或 symlink，請先移除它：
-     ```bash
-     rm -f ~/.local/bin/ai-config
-     ```
-     然後執行：
-     ```bash
-     pipx install --python /usr/bin/python3 --editable .
-     ```
-   * **Windows**：
-     ```powershell
-     pipx install --editable .
-     ```
-   * **沒有 pipx 的環境**（手動 venv,與 pipx 效果等價）：
-     ```bash
-     /usr/bin/python3 -m venv ~/.venvs/ai-config
-     ~/.venvs/ai-config/bin/pip install --editable .
-     ln -sf ~/.venvs/ai-config/bin/ai-config ~/.local/bin/ai-config
-     ```
-     *(避免 `pip install --user`：console script 的 shebang 會硬指當下的直譯器路徑,pyenv 換版本後指令即失效)*
+  # 已有 repo 的機器
+  ~/ai-config/install.sh
+  ```
+* **Windows**(PowerShell):
+  ```powershell
+  # 全新機器
+  git clone git@github.com:CSL426/myccskills.git $HOME\ai-config; & $HOME\ai-config\install.ps1
+
+  # 已有 repo 的機器
+  & $HOME\ai-config\install.ps1
+  ```
+
+因為是 editable 安裝,之後 `git pull`(或 `ai-config sync`)拿到新版程式碼,指令自動生效,**不需要重新安裝**。可用環境變數覆寫預設路徑:`AI_CONFIG_REPO_URL` / `AI_CONFIG_HOME` / `AI_CONFIG_VENV`。
+
+### 手動安裝(pipx / venv)
+
+installer 不合用時的等價做法。重點:指定**系統 Python** 建 venv,不要讓指令綁死在 pyenv / conda 等版本管理器的直譯器上——那些環境一換版本,指令就會斷。
+
+* **pipx(Linux / macOS)**:
+  ```bash
+  pipx install --python /usr/bin/python3 --editable ~/ai-config
+  ```
+* **pipx(Windows)**:
+  ```powershell
+  pipx install --editable $HOME\ai-config
+  ```
+* **手動 venv**:
+  ```bash
+  /usr/bin/python3 -m venv ~/.venvs/ai-config
+  ~/.venvs/ai-config/bin/pip install --editable ~/ai-config
+  ln -sf ~/.venvs/ai-config/bin/ai-config ~/.local/bin/ai-config
+  ```
+  *(避免 `pip install --user`:console script 的 shebang 會硬指當下的直譯器路徑,pyenv 換版本後指令即失效)*
 
 3. **開始使用**：
    安裝後即可在任何目錄直接執行 `ai-config` 全域指令：
