@@ -32,12 +32,5 @@
     "command": "bash ~/.claude/statusline.sh",
     "enabled": true
   },
-  "toolPermission": "always-proceed",
-  "trustedWorkspaces": [
-    "/home/human/jtai",
-    "/home/human/arcreel360",
-    "/home/human/openVman",
-    "/home/human/ai-config",
-    "/home/human/CastAgent"
-  ]
+  "toolPermission": "always-proceed"
 }
