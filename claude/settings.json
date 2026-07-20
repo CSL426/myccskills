@@ -1,5 +1,6 @@
 {
   "env": {
+    "CODEX_HOME": "/home/human/.codex-set",
     "ECC_GATEGUARD": "off",
     "ECC_CONTEXT_MONITOR_COST_WARNINGS": "false"
   },
@@ -24,6 +25,7 @@
     "deny": [],
     "ask": []
   },
+  "model": "claude-fable-5[1m]",
   "statusLine": {
     "type": "command",
     "command": "bash ~/.claude/statusline.sh"
@@ -87,6 +89,5 @@
   "preferredNotifChannel": "kitty",
   "autoCompactEnabled": false,
   "agentPushNotifEnabled": true,
-  "voiceEnabled": true,
-  "model": "claude-fable-5[1m]"
+  "voiceEnabled": true
 }
