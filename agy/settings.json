@@ -1,31 +1,6 @@
 {
   "allowNonWorkspaceAccess": true,
   "model": "Gemini 3.5 Flash (High)",
-  "permissions": {
-    "allow": [
-      "command(ls)",
-      "command(find)",
-      "command(xargs)",
-      "command(git status)",
-      "command(which)",
-      "command(codex)",
-      "command(uv)",
-      "command(pnpm check)",
-      "command(git diff)",
-      "command(openspec)",
-      "command(pnpm run)",
-      "command(poetry)",
-      "command(git checkout)",
-      "command(docker compose)",
-      "command(tail)",
-      "command(cd)",
-      "command(git branch)",
-      "command(git log)",
-      "command(head)",
-      "command(pnpm tsc)",
-      "command(pytest)"
-    ]
-  },
   "runningLightSpeed": "fast",
   "statusLine": {
     "type": "command",
