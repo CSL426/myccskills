@@ -1,6 +1,6 @@
 {
   "allowNonWorkspaceAccess": true,
-  "model": "Gemini 3.5 Flash (High)",
+  "model": "Gemini 3.6 Flash (High)",
   "runningLightSpeed": "fast",
   "statusLine": {
     "type": "command",
