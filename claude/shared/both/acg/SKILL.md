@@ -101,6 +101,7 @@ using it. For a hand-written commit message, commit manually in `data/` instead.
 - **Codex `[projects.*]` preserved:** `apply` keeps the target machine's project blocks, updating only general settings.
 - **`permissions` is machine-local and never synced** (also `trustedWorkspaces` for agy). Each machine keeps its own allowlist, so a permission granted here won't appear on the other machine — that difference in `status` is expected, not drift.
 - **Plugin `cache/` and `.git` are skipped** when projecting `plugins/` to agy — they're regenerable install cache, and `.git` pack files are read-only, which breaks re-mirroring.
+- **"mirror stale" on a machine you just pulled to usually means run `apply`**, not edit `mirror-hash` — the local mirror source is the outdated side. `mirror-hash` is LF-normalized as of 1.0.17, so CRLF line endings on Windows no longer read as drift.
 - Shared skills sync only `SKILL.md` + `examples/` + `references/` + `scripts/` + `agents/` per skill.
 
 ## Typical workflow: add a cross-CLI skill
