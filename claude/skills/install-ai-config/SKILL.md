@@ -12,6 +12,28 @@ the private data repo holds the actual configuration.
 The target machine needs **only Git**. The released CLI is a single executable
 with its Python runtime bundled — no Python, pip, or pipx required.
 
+## Fast path
+
+Two things must come from the user — never invent them:
+
+- **the data repo's Git URL** (SSH form; each person has their own)
+- **where it should live locally** (e.g. `~/ai-config/data`)
+
+With both in hand, the whole setup is one chain:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CSL426/ai-config/main/install.sh | \
+  AI_CONFIG_REPO_URL=<git-url> AI_CONFIG_DATA_DIR=<path> bash
+hash -r
+ai-config status     # preview, read-only
+ai-config apply      # deploy config + every tracked skill
+```
+
+If the URL or path is unknown, ask for it. Do not substitute a guess, and do not
+copy another machine's values — a wrong URL makes setup fail its push check.
+
+Everything below explains the individual steps and the failure modes.
+
 ## 1. Install the binary
 
 Linux, macOS, Git Bash, MSYS2, Cygwin:
@@ -67,6 +89,12 @@ ai-config apply     # deploy to the tool home dirs (auto-backs up first)
 `rules/ agents/ commands/ skills/` directories into `~/.claude`, plus the Codex
 and Antigravity equivalents. Always `status` before `apply` — previewing is
 cheaper than restoring from `~/.ai-config-backup/<timestamp>/`.
+
+**Skills arrive with this step — there is nothing separate to install.** Every
+skill tracked in the data repo lands in `~/.claude/skills/` automatically, so do
+not hand-copy skill directories onto a new machine. This requires **1.0.13 or
+newer**; earlier binaries silently skip `skills/`, so check `ai-config version`
+and run `ai-config update` if the skills directory stays empty after `apply`.
 
 ## 4. Activate tab completion in the current shell
 
