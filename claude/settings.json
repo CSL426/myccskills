@@ -12,28 +12,14 @@
   "enabledPlugins": {
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
     "context7@claude-plugins-official": false,
-    "typescript-lsp@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
-    "security-guidance@claude-plugins-official": true,
-    "feature-dev@claude-plugins-official": false,
     "skill-creator@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true,
-    "playwright@claude-plugins-official": false,
-    "pyright-lsp@claude-plugins-official": true,
     "plugin-dev@claude-plugins-official": false,
     "playground@claude-plugins-official": false,
-    "atomic-agents@claude-plugins-official": false,
-    "microsoft-docs@claude-plugins-official": false,
     "codex@openai-codex": true,
-    "mongodb@claude-plugins-official": true,
     "chrome-devtools-mcp@claude-plugins-official": false,
     "frontend-design@claude-plugins-official": false,
-    "figma@claude-plugins-official": false,
-    "vercel@claude-plugins-official": true,
-    "slack@claude-plugins-official": false,
-    "atlassian@claude-plugins-official": false,
-    "ecc@ecc": true,
-    "desktop-commander@claude-plugins-official": false,
     "remember@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
@@ -47,13 +33,6 @@
       "source": {
         "source": "github",
         "repo": "openai/codex-plugin-cc"
-      },
-      "autoUpdate": true
-    },
-    "ecc": {
-      "source": {
-        "source": "git",
-        "url": "https://github.com/affaan-m/everything-claude-code.git"
       },
       "autoUpdate": true
     }
