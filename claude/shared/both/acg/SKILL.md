@@ -34,7 +34,7 @@ Pass `tool` (`claude`|`codex`|`agy`|`all`) through from the user's request; defa
 
 | repo subdir | tool | home dir | syncs |
 |---|---|---|---|
-| `claude/` | Claude Code | `~/.claude/` | CLAUDE.md, settings.json, mcp.json, agents/, commands/, rules/ |
+| `claude/` | Claude Code | `~/.claude/` | CLAUDE.md, settings.json, mcp.json, statusline.sh, agents/, commands/, rules/, skills/ |
 | `codex/` | Codex CLI | `~/.codex/` | AGENTS.md, config.toml, rules/, skills/ |
 | `agy/` | Antigravity CLI | `~/.gemini/antigravity-cli/` | settings.json, mcp_config.json, skills/ |
 
@@ -57,7 +57,8 @@ ai-config <command> [tool]     # `acg` is the short alias
 | `list` | list managed tools + file counts + backup snapshot count |
 | `package [skill]` | zip a shared skill for Claude Desktop upload |
 | `setup` | configure the data repo remote and verify push access |
-| `update` | download and install the latest release |
+| `update [version]` | install the latest release, or a pinned one (also downgrades) |
+| `skill` | print the built-in acg usage guide (works before `setup`) |
 | `completion` | print the Bash/PowerShell completion script |
 | `version` | show the installed version |
 | `reset` | wipe configs to empty skeleton (confirms first) |
@@ -83,7 +84,7 @@ using it. For a hand-written commit message, commit manually in `data/` instead.
 
 ## Decision rules
 
-- **Where does a new skill go?** Claude Code's own slash commands live in `~/.claude/commands/` (Claude-only, not cross-tool). A **skill you want on Codex/agy too** does NOT go in `~/.claude/skills/` — that dir is not synced. Put it in `~/ai-config/data/claude/shared/`:
+- **Where does a new skill go?** Claude Code's own slash commands live in `~/.claude/commands/` (Claude-only, not cross-tool). For Claude Code skills, `~/.claude/skills/` **is** synced — it's a managed dir alongside `rules/` and `commands/`, so `init` gathers it and `apply` deploys it. A skill you want on **Codex/agy too** additionally needs a copy in `~/ai-config/data/claude/shared/`:
   - `claude/shared/both/<skill>/SKILL.md` → projected to Codex **and** agy
   - `claude/shared/codex/<skill>/` → Codex only
   - `claude/shared/agy/<skill>/` → agy only
@@ -112,7 +113,7 @@ using it. For a hand-written commit message, commit manually in `data/` instead.
 
 ## Common mistakes
 
-- Putting a cross-tool skill in `~/.claude/skills/` and expecting Codex/agy to get it — that dir isn't synced; use `claude/shared/`.
+- Putting a cross-tool skill only in `~/.claude/skills/` and expecting Codex/agy to get it. That dir syncs to other **machines**, but only `claude/shared/` projects to other **tools** — a cross-tool skill needs both copies.
 - Editing live `~/.codex/...` then forgetting `init` — the change isn't captured until you collect it into the repo.
 - Running `apply` without `status` first.
 - Trying to sync a Claude slash command to Codex/agy — they have no slash-command concept; only `skills/` cross-syncs.

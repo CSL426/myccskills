@@ -57,7 +57,8 @@ ai-config <command> [tool]     # `acg` is the short alias
 | `list` | list managed tools + file counts + backup snapshot count |
 | `package [skill]` | zip a shared skill for Claude Desktop upload |
 | `setup` | configure the data repo remote and verify push access |
-| `update` | download and install the latest release |
+| `update [version]` | install the latest release, or a pinned one (also downgrades) |
+| `skill` | print the built-in acg usage guide (works before `setup`) |
 | `completion` | print the Bash/PowerShell completion script |
 | `version` | show the installed version |
 | `reset` | wipe configs to empty skeleton (confirms first) |
