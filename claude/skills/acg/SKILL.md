@@ -92,6 +92,7 @@ using it. For a hand-written commit message, commit manually in `data/` instead.
 - **init vs apply:** changed config on THIS machine and want to save it → `init` (then commit). Want to pull someone else's committed config onto this machine → `apply`. When unsure, run `status` first — it's read-only.
 - **mtime is a hint, not authority:** for differing content, `status` shows repo/live modification times and labels the newer side. Use it to spot likely local edits, but remember Git checkout and external copy operations can change mtime; still confirm whether `init` or `apply` matches the user's intent.
 - **Always `status` before `apply`** to see what will change. `apply` auto-backs up to `~/.ai-config-backup/<timestamp>/` but previewing is cheaper than restoring.
+- **Read `-` lines carefully:** they mark files that exist only live, which `apply` would delete. If that content matters, `init` it into the repo first. (Requires 1.0.16+; earlier versions did not report untracked content in a managed directory the repo lacked entirely.)
 
 ## Safety (built into the script)
 
