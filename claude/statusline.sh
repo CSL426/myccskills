@@ -2,23 +2,53 @@
 # Claude Code statusline script
 # Reads JSON from stdin and outputs a compact single-line status
 
-# Git Bash on Windows ships without jq — show nothing rather than erroring.
-command -v jq >/dev/null 2>&1 || exit 0
-
 input=$(cat)
 
-# --- Extract fields ---
-version=$(echo "$input" | jq -r '.version // empty')
-model=$(echo "$input" | jq -r '.model.display_name // empty')
-agent_name=$(echo "$input" | jq -r '.agent.name // empty')
-worktree_name=$(echo "$input" | jq -r '.worktree.name // empty')
-remaining_pct=$(echo "$input" | jq -r '.context_window.remaining_percentage // empty')
-cost_usd=$(echo "$input" | jq -r '.cost.total_cost_usd // empty')
-duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // empty')
-five_hour_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
-five_hour_resets=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')
-weekly_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
-weekly_resets=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
+FIELDS='.version
+.model.display_name
+.agent.name
+.worktree.name
+.context_window.remaining_percentage
+.cost.total_cost_usd
+.cost.total_duration_ms
+.rate_limits.five_hour.used_percentage
+.rate_limits.five_hour.resets_at
+.rate_limits.seven_day.used_percentage
+.rate_limits.seven_day.resets_at'
+
+# Read every field in one pass. Git Bash on Windows ships without jq, so fall
+# back to the Node runtime Claude Code already depends on; give up quietly only
+# when neither exists, since a broken statusline should not spam the prompt.
+if command -v jq >/dev/null 2>&1; then
+    parsed=$(printf '%s' "$input" | jq -r "[$(echo "$FIELDS" | paste -sd, -)] | map(. // \"\") | @tsv" 2>/dev/null | tr '\t' '\n')
+elif command -v node >/dev/null 2>&1; then
+    parsed=$(printf '%s' "$input" | node -e '
+let raw = "";
+process.stdin.on("data", (d) => (raw += d)).on("end", () => {
+  let data;
+  try { data = JSON.parse(raw); } catch { process.exit(0); }
+  const paths = process.argv[1].split("\n");
+  const read = (p) =>
+    p.replace(/^\./, "").split(".").reduce((o, k) => (o == null ? o : o[k]), data);
+  console.log(paths.map((p) => read(p) ?? "").join("\n"));
+});' "$FIELDS" 2>/dev/null)
+else
+    exit 0
+fi
+
+{
+    read -r version
+    read -r model
+    read -r agent_name
+    read -r worktree_name
+    read -r remaining_pct
+    read -r cost_usd
+    read -r duration_ms
+    read -r five_hour_pct
+    read -r five_hour_resets
+    read -r weekly_pct
+    read -r weekly_resets
+} <<< "$parsed"
 
 # --- ANSI colors ---
 reset='\033[0m'
@@ -74,6 +104,14 @@ build_bar() {
 # --- Helper: relative time from unix epoch seconds ---
 relative_time() {
   local target="$1"
+  # resets_at may arrive as unix seconds or as an ISO-8601 timestamp; arithmetic
+  # on the latter aborts the line with a bash "value too great for base" error.
+  case "$target" in
+    ''|*[!0-9]*)
+      target=$(date -d "$target" +%s 2>/dev/null) || return
+      [ -n "$target" ] || return
+      ;;
+  esac
   local now
   now=$(date +%s)
   local diff=$((target - now))
