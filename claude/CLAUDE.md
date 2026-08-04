@@ -29,6 +29,8 @@
 ### Design skills — division of labor
 `hallmark` owns final taste decisions (anti-AI-slop rules, structural variety) and is the default quality layer for UI work. `ui-component-libraries` is for picking what to build with. `ui-ux-pro-max` is design *data* lookup (palettes, font pairings, chart types). Use `design-md` only when imitating a specific brand. Don't stack multiple taste skills on one task.
 
+For icons, use the `koboyo-icons` MCP rather than a skill — 70k+ hand-drawn SVGs, free for commercial use with no attribution. They are **not** a fixed grid: each keeps its own viewBox, so set one dimension and let the other follow (`height: 2rem; width: auto`) and never force one into a square. They ship with `fill="currentColor"` and an `aria-label`. The licence forbids redistributing the library itself or building an icon picker from it; embedding icons in something larger is fine.
+
 ## Python imports
 Group as: standard library → third-party → local, alphabetical within each group. Break past 79 characters with parentheses, one item per line for more than three items.
 

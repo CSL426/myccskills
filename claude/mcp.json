@@ -3,6 +3,10 @@
     "codex-cli-mcp-tool": {
       "command": "npx",
       "args": ["-y", "@trishchuk/codex-mcp-tool"]
+    },
+    "koboyo-icons": {
+      "type": "http",
+      "url": "https://api.koboyo.com/v1-mcp"
     }
   }
 }
